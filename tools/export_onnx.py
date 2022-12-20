@@ -38,7 +38,7 @@ def make_parser():
     parser.add_argument("--no-onnxsim", action="store_true", help="use onnxsim or not")
     parser.add_argument(
         "-f",
-        "--exp_file",
+        "--exp-file",
         default=None,
         type=str,
         help="experiment description file",

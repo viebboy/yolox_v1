@@ -43,13 +43,13 @@ def make_parser():
         "--train-ann",
         required=True,
         type=str,
-        help="path to training annotation file. Must be COCO format",
+        help="name of training annotation file. Must be COCO format",
     )
     parser.add_argument(
         "--val-ann",
         required=True,
         type=str,
-        help="path to validation annotation file. Must be COCO format",
+        help="name of validation annotation file. Must be COCO format",
     )
     parser.add_argument("-b", "--batch-size", type=int, required=True, help="batch size")
     parser.add_argument(
