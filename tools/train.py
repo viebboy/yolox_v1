@@ -87,19 +87,19 @@ def make_parser():
         help="Adopting mix precision training.",
     )
     parser.add_argument(
-        "--cache",
-        dest="cache",
-        default=False,
-        action="store_true",
-        help="whether to use cache",
-    )
-    parser.add_argument(
         "-o",
         "--occupy",
         dest="occupy",
         default=False,
         action="store_true",
         help="occupy GPU memory first for training.",
+    )
+    parser.add_argument(
+        "--cache",
+        dest='cache',
+        default=True,
+        action="store_true",
+        help="whether to cache dataset for fasting data prep",
     )
     parser.add_argument(
         "-l",
@@ -148,6 +148,9 @@ if __name__ == "__main__":
     exp.use_cache = args.cache
     args.cache = False
     exp.total_batch_size = args.batch_size
+    exp.data_dir = args.data_dir
+    exp.train_ann = args.train_ann
+    exp.val_ann = args.val_ann
 
     exp.merge(args.opts)
 

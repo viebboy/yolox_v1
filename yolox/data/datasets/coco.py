@@ -71,6 +71,7 @@ class COCODataset(Dataset):
             img_size (int): target image size after pre-processing
             preproc: data augmentation strategy
         """
+        self.use_cache = cache
         super().__init__(img_size)
 
         if not cache:
