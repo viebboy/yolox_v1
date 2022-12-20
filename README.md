@@ -9,7 +9,7 @@ Please refer to the original README in [yolox framework](https://github.com/Megv
 Assuming we are in the root directory of this repo
 Install the dependencies by:
 
-````bash
+```bash
 pip3 install -r requirements.txt
 ```
 
@@ -69,6 +69,24 @@ with:
 
 After the conversion, we will obtain the onnx model file as well as the json metadata file (same name, ends with .json) needed to run the inference tool
 
+We can run inference on images, video or webcam using this command:
 
+```bash
+python -m yolox.tools.onnx_inference --onnx-file ${ONNX_FILE} \
+                                     --input-type ${INPUT_TYPE} \
+                                     --input-path ${INPUT_PATH} \
+                                     --output-path ${OUTPUT_PATH} \
+                                     --confidence-threshold ${CONF_THRESHOLD} \
+                                     --nms-threshold ${NMS_THRESHOLD}
+```
+
+with:
+
+- `--onnx-file`: path to the onnx file generated in the above step
+- `--input-type`: the type of input. This can be image, video or webcam
+- `--input-path`: path to the input data. If webcam, then it is id of camera (normally 0)
+- `--output-path`: path to write overlayed detection. If not specify, live video screen is shown
+- `--confidence-threshold': threshold of confidence score
+- `--nms-threshold`: non-maximum suppression threshold
 
 

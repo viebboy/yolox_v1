@@ -382,6 +382,7 @@ def load_model(onnx_file, execution_provider):
     with open(metadata_file, 'r') as fid:
         metadata = json.loads(fid.read())
 
+    assert metadata['batch_size'] == 1, 'Only work with a model having batch size of 1'
     model = OnnxModel(onnx_file, execution_provider)
     return model, metadata
 
