@@ -34,7 +34,10 @@ def make_parser():
         "--data-dir",
         required=True,
         type=str,
-        help="path to directory that contain images",
+        help=(
+            "path to directory that contain images. " +
+            "There must be train2017 and val2017 sub-directories which contain train and validation images"
+        )
     )
     parser.add_argument(
         "--train-ann",
