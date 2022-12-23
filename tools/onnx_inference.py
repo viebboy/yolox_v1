@@ -325,24 +325,21 @@ class Predictor(object):
         return vis_res
 
 
-def image_demo(predictor, input_dir, output_path):
+def image_demo(predictor, input_path, output_path):
     if os.path.isdir(input_path):
         files = get_image_list(input_path)
     else:
-        files = [path]
+        files = [input_path]
     files.sort()
 
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_path, exist_ok=True)
 
     for image_name in files:
         outputs, img_info = predictor.infer(image_name)
         result_image = predictor.visualize(outputs[0], img_info, predictor.conf_threshold)
-        save_file_name = os.path.join(output_dir, os.path.basename(image_name))
+        save_file_name = os.path.join(output_path, os.path.basename(image_name))
         logger.info("Saving detection result in {}".format(save_file_name))
         cv2.imwrite(save_file_name, result_image)
-        ch = cv2.waitKey(0)
-        if ch == 27 or ch == ord("q") or ch == ord("Q"):
-            break
 
 
 def imageflow_demo(predictor, input_path, output_path):
@@ -401,5 +398,10 @@ if __name__ == "__main__":
     if args.input_type == 'image':
         assert args.output_path is not None, '--output-path must not be None for image inference'
         image_demo(predictor, args.input_path, args.output_path)
-    elif args.input_type in ['video', 'webcam']:
+    elif args.input_type == 'video':
         imageflow_demo(predictor, args.input_path, args.output_path)
+    elif args.input_type == 'webcam':
+        webcam_id = int(args.input_path)
+        imageflow_demo(predictor, webcam_id, args.output_path)
+    else:
+        raise RuntimeError(f'Unknown input type: {args.input_type}')
