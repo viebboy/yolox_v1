@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 # Copyright (c) Megvii, Inc. and its affiliates.
+# modified by Dat Tran (datran@axon.com)
 
 import argparse
 import os
@@ -105,24 +106,60 @@ COLORS = np.array(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser("YOLOX ONNX inference!")
-    parser.add_argument("--tracker-config", required=True, type=str, help="path to json tracker configuration")
+    parser = argparse.ArgumentParser("SORT OH Tracker")
     parser.add_argument(
-        "--input-type", required=True, choices=['image', 'video', 'webcam', 'rtsp'])
-    parser.add_argument(
-        "--skip-frame", default='False', choices=['true', 'True', 'false', 'False'])
-    parser.add_argument(
-        "--wide-angle", default='True', choices=['true', 'True', 'false', 'False'])
-    parser.add_argument(
-        "--show-tracking", default='True', choices=['true', 'True', 'false', 'False'])
-    parser.add_argument(
-        "--draw-motion-estimation", default='False', choices=['true', 'True', 'false', 'False'])
-    parser.add_argument("--onnx-file", type=str, required=True)
-    parser.add_argument(
-        "--input-path", type=str, default=None, help="path to images or video or RTSP path"
+        "--tracker-config",
+        required=True,
+        type=str,
+        help="path to json tracker configuration"
     )
     parser.add_argument(
-        "--output-path", type=str, default=None, help="path to save the resulting images or video"
+        "--input-type",
+        required=True,
+        choices=['video', 'webcam', 'rtsp'],
+        help='the type of input data'
+    )
+    parser.add_argument(
+        "--skip-frame",
+        default='False',
+        choices=['true', 'True', 'false', 'False'],
+        help='whether to skip every other frame'
+    )
+    parser.add_argument(
+        "--wide-angle",
+        default='True',
+        choices=['true', 'True', 'false', 'False'],
+        help='whether to crop the center to perform improvement with wide angle frames'
+    )
+    parser.add_argument(
+        "--show-tracking",
+        default='True',
+        choices=['true', 'True', 'false', 'False'],
+        help='if False, only detection is run'
+    )
+    parser.add_argument(
+        "--draw-motion-estimation",
+        default='False',
+        choices=['true', 'True', 'false', 'False'],
+        help='whether to draw the motion estimation box from kalman filter'
+    )
+    parser.add_argument(
+        "--onnx-file",
+        type=str,
+        required=True,
+        help='path to onnx detection model'
+    )
+    parser.add_argument(
+        "--input-path",
+        type=str,
+        default=None,
+        help="path to video, webcam id or RTSP path"
+    )
+    parser.add_argument(
+        "--output-path",
+        type=str,
+        default=None,
+        help="path to save the resulting images or video"
     )
 
     parser.add_argument(
@@ -135,8 +172,10 @@ def parse_args():
     parser.add_argument("--confidence-threshold", default=0.3, type=float, help="test conf")
     parser.add_argument("--nms-threshold", default=0.3, type=float, help="test nms threshold")
     parser.add_argument("--output-fps", default=5, type=int, help="output fps for visualization")
-    parser.add_argument("--fuzzy-width", default=0.1, type=float, help="fuzzy width boundary")
-    parser.add_argument("--fuzzy-height", default=0.1, type=float, help="fuzzy height boundary")
+    parser.add_argument("--fuzzy-width", default=0.1, type=float,
+                        help="fuzzy width boundary in wide angle frames")
+    parser.add_argument("--fuzzy-height", default=0.1, type=float,
+                        help="fuzzy height boundary in wide angle frames")
     parser.add_argument("--center-crop-ratio", default=0.6, type=float,
                         help="crop ratio from the center point")
 
@@ -610,25 +649,6 @@ class Predictor(object):
         return vis_res
 
 
-def image_demo(predictor, input_dir, output_path):
-    if os.path.isdir(input_path):
-        files = get_image_list(input_path)
-    else:
-        files = [path]
-    files.sort()
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    for image_name in files:
-        outputs, img_info = predictor.infer(image_name)
-        result_image = predictor.visualize(outputs[0], img_info, predictor.conf_threshold)
-        save_file_name = os.path.join(output_dir, os.path.basename(image_name))
-        logger.info("Saving detection result in {}".format(save_file_name))
-        cv2.imwrite(save_file_name, result_image)
-        ch = cv2.waitKey(0)
-        if ch == 27 or ch == ord("q") or ch == ord("Q"):
-            break
-
 def capture_from_rtsp(path, image_queue, event_queue, skip_frame):
     cap = cv2.VideoCapture(path)
     count = 0
@@ -702,65 +722,68 @@ def imageflow_demo(
     count = 0
     start_time = time.time()
     is_terminated = False
-    while True:
-        if cap is not None:
-            ret_val, frame = cap.read()
-        else:
-            while True:
-                if not image_queue.empty():
-                    ret_val, frame = image_queue.get()
-                    break
+    try:
+        while True:
+            if cap is not None:
+                ret_val, frame = cap.read()
+            else:
+                while True:
+                    if not image_queue.empty():
+                        ret_val, frame = image_queue.get()
+                        break
+                    else:
+                        time.sleep(0.001)
+
+            if ret_val:
+                bboxes, confidences, class_ids, img_info = predictor.infer(frame)
+                if bboxes is not None:
+                    detections = np.concatenate([bboxes, confidences], axis=1)
                 else:
-                    time.sleep(0.001)
+                    detections = None
 
-        if ret_val:
-            bboxes, confidences, class_ids, img_info = predictor.infer(frame)
-            if bboxes is not None:
-                detections = np.concatenate([bboxes, confidences], axis=1)
-            else:
-                detections = None
+                if show_tracking:
+                    target_ids, predicted_positions = tracker.update(detections)
+                else:
+                    target_ids = [None,] * detections.shape[0] if detections is not None else None
+                    predicted_positions = []
 
-            if show_tracking:
-                target_ids, predicted_positions = tracker.update(detections)
+                if not draw_motion_estimation:
+                    predicted_positions = []
+                result_frame = predictor.visualize(
+                    bboxes,
+                    confidences,
+                    class_ids,
+                    target_ids,
+                    predicted_positions,
+                    img_info,
+                    predictor.conf_threshold,
+                )
+                if output_path is not None:
+                    vid_writer.write(result_frame)
+                else:
+                    cv2.namedWindow("Human Detection & Tracking v1", cv2.WINDOW_NORMAL)
+                    cv2.imshow("Human Detection & Tracking v1", result_frame)
+                ch = cv2.waitKey(1)
+                if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                    logger.info('exiting...')
+                    if cap is None:
+                        logger.info('closing the thread...')
+                        event_queue.put(0)
+                        cap_thread.join()
+                        is_terminated = True
+                    break
+                count += 1
+                if count == 100:
+                    fps = int(count / (time.time() - start_time))
+                    count = 0
+                    start_time = time.time()
+                    logger.info(f'pipeline FPS: {fps}')
             else:
-                target_ids = [None,] * detections.shape[0] if detections is not None else None
-                predicted_positions = []
-
-            if not draw_motion_estimation:
-                predicted_positions = []
-            result_frame = predictor.visualize(
-                bboxes,
-                confidences,
-                class_ids,
-                target_ids,
-                predicted_positions,
-                img_info,
-                predictor.conf_threshold,
-            )
-            if output_path is not None:
-                vid_writer.write(result_frame)
-            else:
-                cv2.namedWindow("Human Detection & Tracking v1", cv2.WINDOW_NORMAL)
-                cv2.imshow("Human Detection & Tracking v1", result_frame)
-            ch = cv2.waitKey(1)
-            if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                logger.info('exiting...')
-                if cap is None:
-                    logger.info('closing the thread...')
-                    event_queue.put(0)
-                    cap_thread.join()
-                    is_terminated = True
                 break
-            count += 1
-            if count == 100:
-                fps = int(count / (time.time() - start_time))
-                count = 0
-                start_time = time.time()
-                logger.info(f'pipeline FPS: {fps}')
-        else:
-            break
 
-    logger.info('outside the main loop...')
+    except Exception as error:
+        pass
+
     if cap_thread is not None and not is_terminated:
         logger.info('closing the thread...')
         event_queue.put(0)

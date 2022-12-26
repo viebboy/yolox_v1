@@ -83,7 +83,7 @@ python -m yolox.tools.onnx_inference --onnx-file ${ONNX_FILE} \
 with:
 
 - `--onnx-file`: path to the onnx file generated in the above step
-- `--input-type`: the type of input. This can be image, video or webcam
+- `--input-type`: the type of input. This can be `image`, `video` or `webcam`
 - `--input-path`: path to the input data. If webcam, then it is id of camera (normally 0)
 - `--output-path`: path to write overlayed detection. If not specify, live video screen is shown
 - `--confidence-threshold': threshold of confidence score

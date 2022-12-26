@@ -1,3 +1,4 @@
+# written by Dat Tran (datran@axon.com)
 from filterpy.kalman import KalmanFilter as BaseKalmanFilter
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -20,7 +21,7 @@ DEFAULT_PARAMS = {
 
 class KalmanFilter:
     """
-    implementation of Kalman Filter
+    implementation of modified Kalman Filter
     """
     def __init__(self, tracker_id, img_height, img_width, cur_bbox, prev_bbox, kwargs):
         self.img_height = img_height
