@@ -7,6 +7,7 @@ Please refer to the original README in [yolox framework](https://github.com/Megv
 ## Installation
 
 Assuming we are in the root directory of this repo
+
 Install the dependencies by:
 
 ```bash
@@ -20,7 +21,10 @@ pip3 install -e .
 ```
 
 ### Detection Model Training
-The data must be prepared in the COCO format. Almost all experiment hyperparameters are specified in a python file with an Exp class.
+The data must be prepared in the COCO format.
+
+Almost all experiment hyperparameters are specified in a python file with an Exp class.
+
 The experiment configurations that correspond to the models described in the [report](https://axon.quip.com/t4IHA4Ab2zLT/Taser-Targeting-Human-Detection-Tracking-Q4-2022-White-Paper) are the following:
 
 - [yolox_nano](./exps/open_image_person_detector_yolox_nano.py)
@@ -31,7 +35,8 @@ The experiment configurations that correspond to the models described in the [re
 - [yolox_custom_v5_exp2](./exps/open_image_person_detector_v5_exp2.py)
 - [yolox_custom_v5_exp3](./exps/open_image_person_detector_v5_exp3.py)
 
-Here is an example of training command for `yolox_custom_v2_exp4`:
+
+The training command signature:
 
 ```bash
 python -m yolox.tools.train -f ${CONFIG_FILE} -d 4 -b 48 --fp16 -o --data-dir ${DATA_DIR} --train-ann ${TRAIN_ANN} --val-ann ${VAL_ANN}
@@ -52,8 +57,10 @@ with:
 - `--train-ann`: name (not the path) of the json training annotation file. This file should be under the `annotations` subdir of the `--data-dir`. 
 - `--val-ann`: name (not the path) of the json validation annotation file. This file should be under the `annotations` subdir of the `--data-dir`. 
 
+
 ### Detection Inference
 The inference script uses ONNX model format so we need to convert the pytorch checkpoint to the ONNX format with a metadata first. 
+
 Conversion command:
 
 ```bash
@@ -89,9 +96,13 @@ with:
 - `--nms-threshold`: non-maximum suppression threshold
 
 
+
 ### SORT OH Tracker 
+
 SORT OH is a multi-object tracker. It is implemented as standalone code under `./standalone/sort_oh`. 
+
 To use this tracker, we need a detection model in ONNX format converted using the above-mentioned conversion tool. 
+
 The command to run this tracker is the following:
 
 ```bash
