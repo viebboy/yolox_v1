@@ -23,14 +23,13 @@ pip3 install -e .
 The data must be prepared in the COCO format. Almost all experiment hyperparameters are specified in a python file with an Exp class.
 The experiment configurations that correspond to the models described in the [report](https://axon.quip.com/t4IHA4Ab2zLT/Taser-Targeting-Human-Detection-Tracking-Q4-2022-White-Paper) are the following:
 
-- `yolox_nano`:`./exps/open_image_person_detector_yolox_nano.py`
-- `yolox_tiny`:`./exps/open_image_person_detector_yolox_tiny.py`
-- `yolox_custom_v2_exp4`:`./exps/open_image_person_detector_v2_exp4.py`
-- `yolox_custom_v2_exp7`:`./exps/open_image_person_detector_v2_exp7.py`
-- `yolox_custom_v2_exp8`:`./exps/open_image_person_detector_v2_exp8.py`
-- `yolox_custom_v5_exp1`:`./exps/open_image_person_detector_v5_exp1.py`
-- `yolox_custom_v5_exp2`:`./exps/open_image_person_detector_v5_exp2.py`
-- `yolox_custom_v5_exp3`:`./exps/open_image_person_detector_v5_exp3.py`
+- [yolox_nano](./exps/open_image_person_detector_yolox_nano.py)
+- [yolox_tiny](./exps/open_image_person_detector_yolox_tiny.py)
+- [yolox_custom_v2_exp4](./exps/open_image_person_detector_v2_exp4.py)
+- [yolox_custom_v2_exp7](./exps/open_image_person_detector_v2_exp7.py)
+- [yolox_custom_v5_exp1](./exps/open_image_person_detector_v5_exp1.py)
+- [yolox_custom_v5_exp2](./exps/open_image_person_detector_v5_exp2.py)
+- [yolox_custom_v5_exp3](./exps/open_image_person_detector_v5_exp3.py)
 
 Here is an example of training command for `yolox_custom_v2_exp4`:
 
