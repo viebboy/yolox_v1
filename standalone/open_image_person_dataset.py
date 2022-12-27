@@ -24,13 +24,14 @@ def download_data(path, split):
         label_types=['detections'],
     )
 
-    dataset.export(
-        export_dir=path,
-        dataset_type=fo.types.COCODetectionDataset,
-        label_field='detections',
-    )
+    # rename the directory data to train2017 or val2017
+    target_dir = os.path.join(path, 'train2017') if split == 'train' else os.path.join(path, 'val2017')
+    if os.path.exists(target_dir):
+        shutil.rmtree(target_path)
+    os.rename(os.path.join(path, 'data'), target_dir)
 
-def clean_data(path, min_area, max_area):
+
+def clean_data(path, split, min_area, max_area):
     # params here
     filepath = os.path.join(path, 'labels.json')
     class_names = ['Person']
@@ -113,15 +114,19 @@ def clean_data(path, min_area, max_area):
             os.remove(f)
 
     # write label file
-    shutil.copy(filepath, filepath + '.bk')
-    with open(filepath, 'w') as fid:
+    annotation_dir = os.path.join(path, 'annotations')
+    if not os.path.exists(annotation_dir):
+        os.mkdir(annotation_dir)
+    annotation_file = os.path.join(annotation_dir, f'{split}.json')
+
+    with open(annotation_file, 'w') as fid:
         fid.write(json.dumps(info, indent=2))
 
 
 def main():
     args = parse_args()
     download_data(args.output_path, args.split)
-    clean_data(args.output_path, args.split)
+    clean_data(args.output_path, args.split, args.min_area, args.max_area)
 
 
 if __name__ == '__main__':
