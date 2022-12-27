@@ -50,6 +50,11 @@ def clean_data(path, split, min_area, max_area):
     with open(filepath, 'r') as fid:
         info = json.loads(fid.read())
 
+    if split == 'train':
+        sub_dir = 'train2017'
+    else:
+        sub_dir = 'val2017'
+
     # update categories to only include specified classes
     old_category_ids = []
     old_to_new_id = {}
@@ -115,9 +120,9 @@ def clean_data(path, split, min_area, max_area):
     files_to_keep = []
     for item in tqdm(updated_images):
         f = item['file_name']
-        files_to_keep.append(os.path.join(path, 'data', f))
+        files_to_keep.append(os.path.join(path, sub_dir, f))
 
-    all_files = [os.path.join(path, 'data', f) for f in os.listdir(os.path.join(path, 'data'))]
+    all_files = [os.path.join(path, sub_dir, f) for f in os.listdir(os.path.join(path, sub_dir))]
     # remove files not needed
     for f in all_files:
         if f not in files_to_keep:
