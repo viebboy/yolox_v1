@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 # Copyright (c) Megvii, Inc. and its affiliates.
+# modified by Dat Tran (datran@axon.com)
 
 import argparse
 import os
@@ -104,23 +105,61 @@ COLORS = np.array(
 ).astype(np.float32).reshape(-1, 3)
 
 
-def make_parser():
-    parser = argparse.ArgumentParser("YOLOX ONNX inference!")
-    parser.add_argument("--tracker-config", required=True, type=str, help="path to json tracker configuration")
+def parse_args():
+    parser = argparse.ArgumentParser("SORT OH Tracker")
     parser.add_argument(
-        "--input-type", required=True, choices=['image', 'video', 'webcam', 'rtsp'])
-    parser.add_argument(
-        "--skip-frame", default='False', choices=['true', 'True', 'false', 'False'])
-    parser.add_argument(
-        "--show-tracking", default='True', choices=['true', 'True', 'false', 'False'])
-    parser.add_argument(
-        "--draw-motion-estimation", default='False', choices=['true', 'True', 'false', 'False'])
-    parser.add_argument("--onnx-file", type=str, required=True)
-    parser.add_argument(
-        "--input-path", type=str, default=None, help="path to images or video or RTSP path"
+        "--tracker-config",
+        required=True,
+        type=str,
+        help="path to json tracker configuration"
     )
     parser.add_argument(
-        "--output-path", type=str, default=None, help="path to save the resulting images or video"
+        "--input-type",
+        required=True,
+        choices=['video', 'webcam', 'rtsp'],
+        help='the type of input data'
+    )
+    parser.add_argument(
+        "--skip-frame",
+        default='False',
+        choices=['true', 'True', 'false', 'False'],
+        help='whether to skip every other frame'
+    )
+    parser.add_argument(
+        "--wide-angle",
+        default='True',
+        choices=['true', 'True', 'false', 'False'],
+        help='whether to crop the center to perform improvement with wide angle frames'
+    )
+    parser.add_argument(
+        "--show-tracking",
+        default='True',
+        choices=['true', 'True', 'false', 'False'],
+        help='if False, only detection is run'
+    )
+    parser.add_argument(
+        "--draw-motion-estimation",
+        default='False',
+        choices=['true', 'True', 'false', 'False'],
+        help='whether to draw the motion estimation box from kalman filter'
+    )
+    parser.add_argument(
+        "--onnx-file",
+        type=str,
+        required=True,
+        help='path to onnx detection model'
+    )
+    parser.add_argument(
+        "--input-path",
+        type=str,
+        default=None,
+        help="path to video, webcam id or RTSP path"
+    )
+    parser.add_argument(
+        "--output-path",
+        type=str,
+        default=None,
+        help="path to save the resulting images or video"
     )
 
     parser.add_argument(
@@ -133,7 +172,35 @@ def make_parser():
     parser.add_argument("--confidence-threshold", default=0.3, type=float, help="test conf")
     parser.add_argument("--nms-threshold", default=0.3, type=float, help="test nms threshold")
     parser.add_argument("--output-fps", default=5, type=int, help="output fps for visualization")
-    return parser
+    parser.add_argument("--fuzzy-width", default=0.1, type=float,
+                        help="fuzzy width boundary in wide angle frames")
+    parser.add_argument("--fuzzy-height", default=0.1, type=float,
+                        help="fuzzy height boundary in wide angle frames")
+    parser.add_argument("--center-crop-ratio", default=0.6, type=float,
+                        help="crop ratio from the center point")
+
+    args = parser.parse_args()
+    if args.skip_frame in ['true', 'True']:
+        args.skip_frame = True
+    else:
+        args.skip_frame = False
+
+    if args.draw_motion_estimation in ['true', 'True']:
+        args.draw_motion_estimation = True
+    else:
+        args.draw_motion_estimation = False
+
+    if args.show_tracking in ['true', 'True']:
+        args.show_tracking = True
+    else:
+        args.show_tracking = False
+
+    if args.wide_angle in ['true', 'True']:
+        args.wide_angle = True
+    else:
+        args.wide_angle = False
+
+    return args
 
 class OnnxModel:
     def __init__(self, engine_file, provider='CPUExecutionProvider'):
@@ -172,8 +239,26 @@ def visualize_annotation(
     target_ids,
     predicted_positions,
     conf=0.5,
-    class_names=None
+    class_names=None,
+    crop_box=None,
+    fuzzy_box=None,
 ):
+    if crop_box is not None:
+        cv2.rectangle(
+            img,
+            (crop_box[0], crop_box[1]), (crop_box[2], crop_box[3]),
+            (255, 255, 255),
+            4
+        )
+
+    if fuzzy_box is not None:
+        cv2.rectangle(
+            img,
+            (fuzzy_box[0], fuzzy_box[1]), (fuzzy_box[2], fuzzy_box[3]),
+            (20, 20, 20),
+            4
+        )
+
     if boxes is None:
         boxes = []
     else:
@@ -251,7 +336,13 @@ def visualize_annotation(
     return img
 
 
-def postprocess(width, height, prediction, num_classes, conf_thre=0.7, nms_thre=0.45, class_agnostic=False):
+def postprocess(
+    prediction,
+    num_classes,
+    conf_thre=0.7,
+    nms_thre=0.45,
+    class_agnostic=False
+):
     prediction = torch.from_numpy(prediction)
     box_corner = prediction.new(prediction.shape)
     box_corner[:, :, 0] = prediction[:, :, 0] - prediction[:, :, 2] / 2
@@ -326,6 +417,10 @@ class Predictor(object):
         class_names,
         confidence_threshold,
         nms_threshold,
+        wide_angle,
+        crop_ratio,
+        fuzzy_width,
+        fuzzy_height,
     ):
         self.model = model
         self.cls_names = class_names
@@ -333,6 +428,12 @@ class Predictor(object):
         self.conf_threshold = confidence_threshold
         self.nms_threshold = nms_threshold
         self.input_size = input_size
+        self.wide_angle = wide_angle
+        self.crop_ratio = crop_ratio
+        self.fuzzy_width = fuzzy_width
+        self.fuzzy_height = fuzzy_height
+        self.crop_box = None
+        self.fuzzy_box = None
 
     def infer(self, img):
         img_info = {"id": 0}
@@ -347,14 +448,39 @@ class Predictor(object):
         img_info["width"] = width
         img_info["raw_img"] = img
 
-        img, ratio = preproc(img, self.input_size)
-        img_info["ratio"] = ratio
+        # if wide angle, take a crop
+        if self.wide_angle:
+            height_pad = int(height * (1 - self.crop_ratio)/2)
+            width_pad = int(width * (1 - self.crop_ratio)/2)
+            crop_img = img[height_pad:height-height_pad, width_pad:width-width_pad, :]
+            crop_img_height = crop_img.shape[0]
+            crop_img_width = crop_img.shape[1]
+        else:
+            height_pad = None
+            width_pad = None
+            crop_img = None
+            crop_img_height = None
+            crop_img_width = None
 
-        t0 = time.time()
-        outputs = self.model(np.expand_dims(img, 0))
+        img_info['height_pad'] = height_pad
+        img_info['width_pad'] = width_pad
+
+        img, ratio = preproc(img, self.input_size)
+        if crop_img is not None:
+            crop_img, crop_img_ratio = preproc(crop_img, self.input_size)
+        else:
+            crop_img_ratio = None
+
+        img_info["ratio"] = ratio
+        img_info["crop_img_ratio"] = crop_img_ratio
+
+        img = np.expand_dims(img, 0)
+        if crop_img is not None:
+            crop_img = np.expand_dims(crop_img, 0)
+            img = np.concatenate((img, crop_img), 0)
+
+        outputs = self.model(img)
         outputs = postprocess(
-            width,
-            height,
             outputs,
             self.num_classes,
             self.conf_threshold,
@@ -362,8 +488,137 @@ class Predictor(object):
             class_agnostic=True
         )
 
-        #logger.info("Infer time: {:.4f}s".format(time.time() - t0))
-        return outputs, img_info
+        # process boxes from the outer image
+        boxes, confidences, class_ids = self.postprocess(
+            outputs[0],
+            height,
+            width,
+            ratio,
+            True
+        )
+
+        # process inner image
+        if self.wide_angle:
+            inner_boxes, inner_confidences, inner_class_ids = self.postprocess(
+                outputs[1],
+                crop_img_height,
+                crop_img_width,
+                crop_img_ratio,
+                False,
+            )
+
+            boxes, confidences, class_ids = self.combine(
+                boxes,
+                confidences,
+                class_ids,
+                inner_boxes,
+                inner_confidences,
+                inner_class_ids,
+                height,
+                width,
+                height_pad,
+                width_pad,
+            )
+
+            if self.crop_box is None:
+                self.crop_box = (width_pad, height_pad, width-width_pad, height - height_pad)
+            if self.fuzzy_box is None:
+
+                self.fuzzy_box = (
+                    width_pad + int(crop_img_width * self.fuzzy_width),
+                    height_pad + int(crop_img_height * self.fuzzy_height),
+                    width - width_pad - int(crop_img_width * self.fuzzy_width),
+                    height - height_pad - int(crop_img_height * self.fuzzy_height)
+                )
+
+        return boxes, confidences, class_ids, img_info
+
+    def combine(
+        self,
+        outter_boxes,
+        outter_confidences,
+        outter_class_ids,
+        inner_boxes,
+        inner_confidences,
+        inner_class_ids,
+        height,
+        width,
+        height_pad,
+        width_pad,
+    ):
+        if outter_boxes is None and inner_boxes is None:
+            return None, None, None
+        elif outter_boxes is None and inner_boxes is not None:
+            # shift the box to outter image coordinates
+            inner_boxes[:, 0] = inner_boxes[:, 0] + width_pad
+            inner_boxes[:, 1] = inner_boxes[:, 1] + height_pad
+            inner_boxes[:, 2] = inner_boxes[:, 2] + width_pad
+            inner_boxes[:, 3] = inner_boxes[:, 3] + height_pad
+            return inner_boxes, inner_confidences, inner_class_ids
+        elif inner_boxes is None:
+            return outter_boxes, outter_confidences, outter_class_ids
+        else:
+            # shift the box to outter image coordinates
+            inner_boxes[:, 0] = inner_boxes[:, 0] + width_pad
+            inner_boxes[:, 1] = inner_boxes[:, 1] + height_pad
+            inner_boxes[:, 2] = inner_boxes[:, 2] + width_pad
+            inner_boxes[:, 3] = inner_boxes[:, 3] + height_pad
+
+            # boundary to combine
+            # inner boxes selected inside boundary
+            # outter boxes selected outside boundary
+            crop_width = width - 2 * width_pad
+            crop_height = height - 2 * height_pad
+            x_min = width_pad + int(crop_width * self.fuzzy_width)
+            y_min = height_pad + int(crop_height * self.fuzzy_height)
+
+            x_max = width - x_min
+            y_max = height - y_min
+
+            # select boxes inside boundary
+            inner_center_x = (inner_boxes[:, 0] + inner_boxes[:, 2]) / 2
+            inner_center_y = (inner_boxes[:, 1] + inner_boxes[:, 3]) / 2
+            x_mask = (inner_center_x - x_min) * (x_max - inner_center_x) > 0
+            y_mask = (inner_center_y - y_min) * (y_max - inner_center_y) > 0
+            mask = [i and j for i, j in zip(x_mask.flatten(), y_mask.flatten())]
+            inner_boxes  = inner_boxes[mask]
+            inner_confidences  = inner_confidences[mask]
+            inner_class_ids = inner_class_ids[mask]
+
+            # select boxes outside boundary
+            outter_center_x = (outter_boxes[:, 0] + outter_boxes[:, 2]) / 2
+            outter_center_y = (outter_boxes[:, 1] + outter_boxes[:, 3]) / 2
+            x_mask = (outter_center_x - x_min) * (x_max - outter_center_x) <= 0
+            y_mask = (outter_center_y - y_min) * (y_max - outter_center_y) <= 0
+            mask = [i or j for i, j in zip(x_mask.flatten(), y_mask.flatten())]
+            outter_boxes  = outter_boxes[mask]
+            outter_confidences  = outter_confidences[mask]
+            outter_class_ids = outter_class_ids[mask]
+
+            boxes = np.concatenate([outter_boxes, inner_boxes], axis=0)
+            confidences = np.concatenate([outter_confidences, inner_confidences], axis=0)
+            class_ids = np.concatenate([outter_class_ids, inner_class_ids], axis=0)
+            return boxes, confidences, class_ids
+
+
+    def postprocess(self, output, height, width, ratio, clipping):
+        if output is not None and output.numpy().shape[0] > 0:
+            output = output.numpy()
+            bboxes = output[:, :4]
+            bboxes /= ratio
+            if clipping:
+                bboxes[:, 0] = np.clip(bboxes[:, 0], 0, width - 1)
+                bboxes[:, 1] = np.clip(bboxes[:, 1], 0, height - 1)
+                bboxes[:, 2] = np.clip(bboxes[:, 2], 0, width - 1)
+                bboxes[:, 3] = np.clip(bboxes[:, 3], 0, height - 1)
+            confidences = output[:, 4:5] * output[:, 5:6]
+            class_ids = output[:, 6]
+            #detections = np.concatenate([bboxes, confidences], axis=1)
+        else:
+            bboxes = None
+            confidences = None
+            class_ids = None
+        return bboxes, confidences, class_ids
 
     def visualize(
         self,
@@ -387,29 +642,12 @@ class Predictor(object):
             target_ids,
             predicted_positions,
             cls_conf,
-            self.cls_names
+            self.cls_names,
+            self.crop_box,
+            self.fuzzy_box,
         )
         return vis_res
 
-
-def image_demo(predictor, input_dir, output_path):
-    if os.path.isdir(input_path):
-        files = get_image_list(input_path)
-    else:
-        files = [path]
-    files.sort()
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    for image_name in files:
-        outputs, img_info = predictor.infer(image_name)
-        result_image = predictor.visualize(outputs[0], img_info, predictor.conf_threshold)
-        save_file_name = os.path.join(output_dir, os.path.basename(image_name))
-        logger.info("Saving detection result in {}".format(save_file_name))
-        cv2.imwrite(save_file_name, result_image)
-        ch = cv2.waitKey(0)
-        if ch == 27 or ch == ord("q") or ch == ord("Q"):
-            break
 
 def capture_from_rtsp(path, image_queue, event_queue, skip_frame):
     cap = cv2.VideoCapture(path)
@@ -484,81 +722,68 @@ def imageflow_demo(
     count = 0
     start_time = time.time()
     is_terminated = False
-    while True:
-        if cap is not None:
-            ret_val, frame = cap.read()
-        else:
-            while True:
-                if not image_queue.empty():
-                    ret_val, frame = image_queue.get()
-                    break
+    try:
+        while True:
+            if cap is not None:
+                ret_val, frame = cap.read()
+            else:
+                while True:
+                    if not image_queue.empty():
+                        ret_val, frame = image_queue.get()
+                        break
+                    else:
+                        time.sleep(0.001)
+
+            if ret_val:
+                bboxes, confidences, class_ids, img_info = predictor.infer(frame)
+                if bboxes is not None:
+                    detections = np.concatenate([bboxes, confidences], axis=1)
                 else:
-                    time.sleep(0.001)
+                    detections = None
 
-        if ret_val:
-            outputs, img_info = predictor.infer(frame)
+                if show_tracking:
+                    target_ids, predicted_positions = tracker.update(detections)
+                else:
+                    target_ids = [None,] * detections.shape[0] if detections is not None else None
+                    predicted_positions = []
 
-            # 0, 1, 2, 3 are the column indices of bounding boxe coordinates, 5
-            # is the column indices of the class confidence
-
-            if outputs[0] is not None and outputs[0].numpy().shape[0] > 0:
-                output = outputs[0].numpy()
-                bboxes = output[:, :4]
-                bboxes /= img_info['ratio']
-                bboxes[:, 0] = np.clip(bboxes[:, 0], 0, img_info['width'] - 1)
-                bboxes[:, 1] = np.clip(bboxes[:, 1], 0, img_info['height'] - 1)
-                bboxes[:, 2] = np.clip(bboxes[:, 2], 0, img_info['width'] - 1)
-                bboxes[:, 3] = np.clip(bboxes[:, 3], 0, img_info['height'] - 1)
-                confidences = output[:, 4:5] * output[:, 5:6]
-                class_ids = output[:, 6]
-                detections = np.concatenate([bboxes, confidences], axis=1)
+                if not draw_motion_estimation:
+                    predicted_positions = []
+                result_frame = predictor.visualize(
+                    bboxes,
+                    confidences,
+                    class_ids,
+                    target_ids,
+                    predicted_positions,
+                    img_info,
+                    predictor.conf_threshold,
+                )
+                if output_path is not None:
+                    vid_writer.write(result_frame)
+                else:
+                    cv2.namedWindow("Human Detection & Tracking v1", cv2.WINDOW_NORMAL)
+                    cv2.imshow("Human Detection & Tracking v1", result_frame)
+                ch = cv2.waitKey(1)
+                if ch == 27 or ch == ord("q") or ch == ord("Q"):
+                    logger.info('exiting...')
+                    if cap is None:
+                        logger.info('closing the thread...')
+                        event_queue.put(0)
+                        cap_thread.join()
+                        is_terminated = True
+                    break
+                count += 1
+                if count == 100:
+                    fps = int(count / (time.time() - start_time))
+                    count = 0
+                    start_time = time.time()
+                    logger.info(f'pipeline FPS: {fps}')
             else:
-                bboxes = None
-                confidences = None
-                class_ids = None
-                detections = None
-
-            if show_tracking:
-                target_ids, predicted_positions = tracker.update(detections)
-            else:
-                target_ids = [None,] * detections.shape[0] if detections is not None else None
-                predicted_positions = []
-
-            if not draw_motion_estimation:
-                predicted_positions = []
-            result_frame = predictor.visualize(
-                bboxes,
-                confidences,
-                class_ids,
-                target_ids,
-                predicted_positions,
-                img_info,
-                predictor.conf_threshold,
-            )
-            if output_path is not None:
-                vid_writer.write(result_frame)
-            else:
-                cv2.namedWindow("Human Detection & Tracking v1", cv2.WINDOW_NORMAL)
-                cv2.imshow("Human Detection & Tracking v1", result_frame)
-            ch = cv2.waitKey(1)
-            if ch == 27 or ch == ord("q") or ch == ord("Q"):
-                logger.info('exiting...')
-                if cap is None:
-                    logger.info('closing the thread...')
-                    event_queue.put(0)
-                    cap_thread.join()
-                    is_terminated = True
                 break
-            count += 1
-            if count == 100:
-                fps = int(count / (time.time() - start_time))
-                count = 0
-                start_time = time.time()
-                logger.info(f'pipeline FPS: {fps}')
-        else:
-            break
 
-    logger.info('outside the main loop...')
+    except Exception as error:
+        pass
+
     if cap_thread is not None and not is_terminated:
         logger.info('closing the thread...')
         event_queue.put(0)
@@ -579,22 +804,7 @@ def load_model(onnx_file, execution_provider):
 
 
 if __name__ == "__main__":
-    args = make_parser().parse_args()
-    if args.skip_frame in ['true', 'True']:
-        args.skip_frame = True
-    else:
-        args.skip_frame = False
-
-    if args.draw_motion_estimation in ['true', 'True']:
-        args.draw_motion_estimation = True
-    else:
-        args.draw_motion_estimation = False
-
-    if args.show_tracking in ['true', 'True']:
-        args.show_tracking = True
-    else:
-        args.show_tracking = False
-
+    args = parse_args()
 
     # parse tracker params
     assert os.path.exists(args.tracker_config)
@@ -607,7 +817,11 @@ if __name__ == "__main__":
         model=model,
         class_names=metadata['class_names'],
         confidence_threshold=args.confidence_threshold,
-        nms_threshold=args.nms_threshold
+        nms_threshold=args.nms_threshold,
+        wide_angle=args.wide_angle,
+        crop_ratio=args.center_crop_ratio,
+        fuzzy_width=args.fuzzy_width,
+        fuzzy_height=args.fuzzy_height,
     )
 
     if args.input_type == 'image':
