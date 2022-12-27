@@ -5,6 +5,7 @@ import json
 import shutil
 import copy
 from tqdm import tqdm
+import os
 
 def parse_args():
     parser = argparse.ArgumentParser("human detection dataset preparation")
@@ -22,8 +23,17 @@ def download_data(path, split):
         classes = ['Person'],
         dataset_dir=path,
         label_types=['detections'],
+        max_samples=100,
     )
 
+    dataset.export(
+        export_dir=path,
+        dataset_type=fo.types.COCODetectionDataset,
+        label_field='detections',
+    )
+
+    # remove the train split
+    shutil.rmtree(os.path.join(path, split))
     # rename the directory data to train2017 or val2017
     target_dir = os.path.join(path, 'train2017') if split == 'train' else os.path.join(path, 'val2017')
     if os.path.exists(target_dir):
