@@ -35,6 +35,8 @@ The experiment configurations that correspond to the models described in the [re
 - [yolox_custom_v5_exp2](./exps/open_image_person_detector_v5_exp2.py)
 - [yolox_custom_v5_exp3](./exps/open_image_person_detector_v5_exp3.py)
 
+The configuration of bigger YOLOX models can be found in [here](./exps/default)
+
 
 The training command signature:
 
@@ -56,6 +58,10 @@ with:
   `annotations` should contain json annotation files 
 - `--train-ann`: name (not the path) of the json training annotation file. This file should be under the `annotations` subdir of the `--data-dir`. 
 - `--val-ann`: name (not the path) of the json validation annotation file. This file should be under the `annotations` subdir of the `--data-dir`. 
+
+For those default YOLOX models defined in [here](./exps/default), there are pretrained weights that can be used to initialize the models before training. 
+
+A pretrained weight checkpoint can be given to the training script via the switch `-c ${PATH_TO_CHECKPOINT}`. 
 
 
 ### Detection Inference

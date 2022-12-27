@@ -23,7 +23,6 @@ def download_data(path, split):
         classes = ['Person'],
         dataset_dir=path,
         label_types=['detections'],
-        max_samples=100,
     )
 
     dataset.export(
