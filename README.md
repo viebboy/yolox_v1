@@ -127,8 +127,8 @@ with:
 - `--input-type`: the type of input. This can be `video`, `webcam`, `rtsp`
 - `--onnx-file`: path to the onnx file generated in the above step
 - `--confidence-threshold': threshold of confidence score
-- `--nms-threshold': NMS threshold
-- `--tracker-config': path to the json config file for tracker. Example can be found in `./standalone/sort_oh/config.json` 
+- `--nms-threshold`: NMS threshold
+- `--tracker-config`: path to the json config file for tracker. Example can be found in `./standalone/sort_oh/config.json` 
 - `--input-path`: path to the input data. If webcam, then it is id of camera (normally 0)
 - `--show-tracking`: whether to show the tracking result. If False, only detection is run. 
 - `--wide-angle`: whether to use the cropping trick to improve wide-angle detection. If True, the ONNX model must work with a batch size of 2. 
