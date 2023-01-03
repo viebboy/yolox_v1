@@ -4,6 +4,11 @@ The source code is based on the [yolox framework](https://github.com/Megvii-Base
 
 Please refer to the original README in [yolox framework](https://github.com/Megvii-BaseDetection/YOLOX) for a complete description. 
 
+The repo was developed during 4Q2022, which is accompanied with the following [Quip report](https://axon.quip.com/t4IHA4Ab2zLT/Taser-Targeting-Human-Detection-Tracking-Q4-2022-White-Pape://axon.quip.com/t4IHA4Ab2zLT/Taser-Targeting-Human-Detection-Tracking-Q4-2022-White-Paper)
+
+
+**Quick Start**: After the installation step, you can use [train_human_detector.sh](./train_human_detector.sh) to run data preparation, training, onnx conversion on a local machine with 4 GPUs. Detailed description of each step is provided below. 
+
 ## Installation
 
 Assuming we are in the root directory of this repo
@@ -20,8 +25,40 @@ Then install the package by:
 pip3 install -e .
 ```
 
+### Data Preparation
+In general, the data should be prepared with MS COCO format.  
+
+The data must be prepared in the COCO format. Assuming your dataset lies under a directory called `datasets`, the data must be organized in the following way:
+
+- training images must be put under a sub-directory called `train2017` 
+- validation images must be put under a sub-directory called `val2017`
+- json annotation files for train and validation sets must be put under a sub-directory called `annotations`
+
+The experiments reported in [Quip report](https://axon.quip.com/t4IHA4Ab2zLT/Taser-Targeting-Human-Detection-Tracking-Q4-2022-White-Pape://axon.quip.com/t4IHA4Ab2zLT/Taser-Targeting-Human-Detection-Tracking-Q4-2022-White-Paper) were done using the [Open Image Dataset V6](https://storage.googleapis.com/openimages/web/download.html).
+
+To prepare the same dataset, we could use the script under `standalone/open_image_person_dataset.py` as follows:
+
+```bash
+python standalone/open_image_person_dataset.py \
+        --output-path ${DATA_DIR} \
+        --split ${SPLIT} \
+        --min-area 0 \
+        --max-area 0.25
+```
+
+with:
+
+- `--output-path`: defines the path to download and save the directory
+- `--split`: this should be train or validation 
+- `--min-area`: minimum bounding area ratio with respect to total area of the image (ranging from 0 to 1) 
+                this is used to filter out bounding boxes that are too small
+- `--max-area`: maximum bounding area ratio with respect to total area of the image (ranging from 0 to 1) 
+                this is used to filter out bounding boxes that are too big
+
+
+
 ### Detection Model Training
-The data must be prepared in the COCO format.
+
 
 Almost all experiment hyperparameters are specified in a python file with an Exp class.
 
@@ -41,7 +78,7 @@ The configuration of bigger YOLOX models can be found in [here](./exps/default)
 The training command signature:
 
 ```bash
-python -m yolox.tools.train -f ${CONFIG_FILE} -d 4 -b 48 --fp16 -o --data-dir ${DATA_DIR} --train-ann ${TRAIN_ANN} --val-ann ${VAL_ANN}
+python -m yolox.tools.train -f ${CONFIG_FILE} -d 4 -b 48 --fp16 --data-dir ${DATA_DIR} --train-ann ${TRAIN_ANN} --val-ann ${VAL_ANN} --cache
 ```
 
 with:
@@ -50,7 +87,6 @@ with:
 - `-d`: the number of gpus
 - `-b`: total batch size for all devices
 - `--fp16`: whether to use half precision
-- `-o`: whether to occupy gpu first for training
 - `--data-dir`: path to directory that contain images.
   This directory must contain `train2017`, `val2017`, `annotations` as subdirs. 
   `train2017` should contain training images
@@ -58,6 +94,7 @@ with:
   `annotations` should contain json annotation files 
 - `--train-ann`: name (not the path) of the json training annotation file. This file should be under the `annotations` subdir of the `--data-dir`. 
 - `--val-ann`: name (not the path) of the json validation annotation file. This file should be under the `annotations` subdir of the `--data-dir`. 
+- `--cache`: if specfied, enable data caching for faster data loading and preparation
 
 For those default YOLOX models defined in [here](./exps/default), there are pretrained weights that can be used to initialize the models before training. 
 

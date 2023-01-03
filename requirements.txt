@@ -10,6 +10,7 @@ ninja
 tabulate
 dill
 joblib
+mxnet
 
 # verified versions
 # pycocotools corresponds to https://github.com/ppwwyyxx/cocoapi

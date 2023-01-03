@@ -36,7 +36,7 @@ def download_data(path, split):
     # rename the directory data to train2017 or val2017
     target_dir = os.path.join(path, 'train2017') if split == 'train' else os.path.join(path, 'val2017')
     if os.path.exists(target_dir):
-        shutil.rmtree(target_path)
+        shutil.rmtree(target_dir)
     os.rename(os.path.join(path, 'data'), target_dir)
 
 
