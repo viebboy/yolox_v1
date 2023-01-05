@@ -2,12 +2,12 @@
 
 ############################## config ########################## 
 # data directory
-DATA_DIR=./datasets
+DATA_DIR=/mnt/datasets
 mkdir -p ${DATA_DIR}
 
 # train annotation file
-TRAIN_ANN=${DATA_DIR}/annotations/train.json
-VAL_ANN=${DATA_DIR}/annotations/train.json
+TRAIN_ANN=train.json
+VAL_ANN=train.json
 
 # data split
 SPLIT=train
@@ -23,7 +23,7 @@ CONFIG_FILE=./exps/open_image_person_detector_v2_exp7.py
 ONNX_FILE=./YOLOX_outputs/open_image_person_detector_v2_exp7.onnx
 
 # number of GPU
-NB_GPU=4
+NB_GPU=1
 
 # batch size
 BATCH_SIZE=48
@@ -33,7 +33,7 @@ INFER_BATCH_SIZE=1
 
 
 ############################# download & prepare dataset #######
-python standalone/open_image_person_dataset.py --output-path ${DATA_DIR} --split ${SPLIT} --min-area ${MIN_AREA} --max-area ${MAX_AREA}
+#python standalone/open_image_person_dataset.py --output-path ${DATA_DIR} --split ${SPLIT} --min-area ${MIN_AREA} --max-area ${MAX_AREA}
 
 
 ############################# train ############################

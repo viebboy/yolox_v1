@@ -16,6 +16,19 @@ def parse_args():
 
     return parser.parse_args()
 
+def check_existence(path, split):
+    if split == 'train':
+        img_dir = os.path.join(path, 'train2017')
+        anno_file = os.path.join(path, 'annotations', 'train.json')
+    else:
+        img_dir = os.path.join(path, 'val2017')
+        anno_file = os.path.join(path, 'annotations', 'validation.json')
+    if os.path.exists(img_dir) and os.path.exists(anno_file):
+        return True
+    else:
+        return False
+
+
 def download_data(path, split):
     dataset = foz.load_zoo_dataset(
         'open-images-v6',
@@ -139,8 +152,11 @@ def clean_data(path, split, min_area, max_area):
 
 def main():
     args = parse_args()
-    download_data(args.output_path, args.split)
-    clean_data(args.output_path, args.split, args.min_area, args.max_area)
+    if check_existence(args.output_path, args.split):
+        print('data was downloaded and prepared')
+    else:
+        download_data(args.output_path, args.split)
+        clean_data(args.output_path, args.split, args.min_area, args.max_area)
 
 
 if __name__ == '__main__':
