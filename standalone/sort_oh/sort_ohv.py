@@ -11,12 +11,13 @@ DEFAULT_PARAMS = {
     'max_age_threshold': 22,
     'max_age': 20,
     'min_hits': 3,
-    'min_iou_in_step1': 0.3,
+    'min_similarity_in_step1': 0.3,
     'min_iou_in_step2': 0.3,
     'min_cover_percentage': 0.3,
     'target_occlusion_threshold': 0.35,
     'object_occlusion_threshold': 0.75,
     'outside_percentage_threshold': 0.5,
+    'cost_factor': 0.9,
 }
 
 class KalmanFilter:
@@ -36,6 +37,7 @@ class KalmanFilter:
         self.confidence = 0
         self.kwargs = kwargs
         self.cur_bbox = cur_bbox
+        self.embedding = None
 
         if kwargs['estimate_box_ratio']:
             self.filter = BaseKalmanFilter(dim_x=8, dim_z=4)
@@ -129,8 +131,19 @@ class KalmanFilter:
                 # if there is prev box, we can provide initial velocity
                 self.filter.x[4:] = cur_state[:3] - prev_state[:3]
 
+    def visual_embedding(self):
+        return self.embedding
 
-    def update(self, bbox):
+    def update(self, bbox, embedding=None):
+        if embedding is not None:
+            if self.embedding is None:
+                self.embedding = embedding
+            else:
+                self.embedding = (
+                    self.kwargs['embedding_momentum'] * self.embedding +
+                    (1 - self.kwargs['embedding_momentum']) * embedding
+                )
+
         self.time_since_update = 0
         if bbox is None:
             # if no observation, adjust the velocity of area and aspect ratio
@@ -231,7 +244,7 @@ class SORT_OH:
 
 
     @logger.catch
-    def update(self, detections):
+    def update(self, detections, embeddings=None):
         """
         detections must be a numpy array of size N x 5
         the first 4 columns are the x0, y0, x1, y1 coorindates
@@ -244,7 +257,8 @@ class SORT_OH:
         all_pos = self._predict()
 
         if detections is None or detections.shape[0] == 0:
-            #print('no detection, returning None from tracker')
+            # if there are no detections, we will return the predicted
+            # positions of all tracklets
             return None, all_pos
 
         #print(f'before matching: all tracker ids: {list(self.trackers.keys())}')
@@ -255,7 +269,7 @@ class SORT_OH:
             occluded_tracker_ids,
             unmatched_tracker_ids,
             unmatched_detection_indices
-        ) = self._match_boxes_to_trackers(detections)
+        ) = self._match_boxes_to_trackers(detections, embeddings)
 
         #print(f'matched pairs: {matched_pairs}')
         #print(f'occluded_tracker_ids: {occluded_tracker_ids}')
@@ -264,7 +278,13 @@ class SORT_OH:
 
         # update the matched trackers
         for tracker_id, det_idx in matched_pairs:
-            self.trackers[tracker_id].update(detections[det_idx][:4].flatten())
+            if embeddings is None:
+                self.trackers[tracker_id].update(detections[det_idx][:4].flatten())
+            else:
+                self.trackers[tracker_id].update(
+                    detections[det_idx][:4].flatten(),
+                    embeddings[det_idx].flatten(),
+                )
 
         # calling update for occluded trackers
         # calling update without any associated bbox
@@ -274,7 +294,14 @@ class SORT_OH:
 
         # now we create new trackers
         unmatched_detections = [detections[idx][:4].flatten() for idx in unmatched_detection_indices]
-        self._create_new_trackers(unmatched_detections)
+        if embeddings is None:
+            unmatched_embeddings = None
+        else:
+            unmatched_embeddings = [
+                embeddings[idx].flatten() for idx in unmatched_detection_indices
+            ]
+
+        self._create_new_trackers(unmatched_detections, unmatched_embeddings)
 
         # remove dead tracklets
         self._remove_dead_tracklets()
@@ -299,7 +326,10 @@ class SORT_OH:
         for id in id_to_remove:
             del self.trackers[id]
 
-    def _create_new_trackers(self, detections):
+    def _create_new_trackers(self, detections, embeddings=None):
+        if embeddings is not None:
+            raise NotImplemented()
+
         if self.frame_count <= self.kwargs['min_hits']:
             # if still in the first few frames
             for det in detections:
@@ -365,8 +395,10 @@ class SORT_OH:
             self.prev_unmatched = detections
             self.pprev_unmatched = self.prev_unmatched
 
+    def _compute_visual_similarity(self):
+        raise NotImplemented()
 
-    def _match_boxes_to_trackers(self, detections):
+    def _match_boxes_to_trackers(self, detections, embeddings):
         """
         cascade matching
         trackers: a list of 2-element tuples: (tracker_id, bbox)
@@ -379,6 +411,8 @@ class SORT_OH:
         occluded_tracker_ids = []
 
         if len(self.trackers.keys()) == 0 or len(detections) == 0:
+            # if no existing trackers or no detections
+            # we only have unmatched detections
             unmatched_detection_indices = list(range(len(detections)))
             return (
                 matched_pairs,
@@ -393,24 +427,37 @@ class SORT_OH:
         # get the bboxes of trackers first
         tracker_bboxes = []
         tracker_ids = []
+        tracker_embeddings = []
+
         for id, tracker in self.trackers.items():
             tracker_bboxes.append(tracker.current_position().flatten())
             tracker_ids.append(id)
+            tracker_embeddings.append(tracker.visual_embedding())
 
         # get the detection bboxes
         det_bboxes = [item[:4].flatten() for item in detections]
 
-        # compute IoU matrix as the cost matrix
-        iou_matrix = self._compute_iou(tracker_bboxes, det_bboxes)
+        # compute IoU matrix
+        position_similarity = self._compute_iou(tracker_bboxes, det_bboxes)
+
+        if embeddings is not None:
+            visual_similarity = self._compute_visual_similarity(tracker_embeddings, embeddings)
+        else:
+            visual_similarity = np.zeros(iou_matrix.shape)
+
+        similarity_matrix = (
+            visual_similarity * self.kwargs['visual_cost_factor'] +
+            (1 - self.kwargs['visual_cost_factor']) * position_similarity
+        )
 
         # hungarian matching
-        tracker_indices, detection_indices = linear_sum_assignment(-iou_matrix)
+        tracker_indices, detection_indices = linear_sum_assignment(-similarity_matrix)
         #print(f'matched tracker indices after matching: {tracker_indices}')
 
         # construct matched pairs of: tracker_id, box_index
-        # taking into account minimum IoU score
+        # taking into account minimum similarity score
         for tracklet_idx, detection_idx in zip(tracker_indices, detection_indices):
-            if iou_matrix[tracklet_idx, detection_idx] >= self.kwargs['min_iou_in_step1']:
+            if similarity_matrix[tracklet_idx, detection_idx] >= self.kwargs['min_similarity_in_step1']:
                 matched_pairs.append((tracker_ids[tracklet_idx], detection_idx))
             else:
                 #print(f'minimum IoU doesnt satisfy: {iou_matrix[tracklet_idx, detection_idx]}')
