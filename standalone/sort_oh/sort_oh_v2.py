@@ -17,14 +17,15 @@ DEFAULT_PARAMS = {
     'target_occlusion_threshold': 0.35,
     'object_occlusion_threshold': 0.75,
     'outside_percentage_threshold': 0.5,
-    'cost_factor': 0.9,
+    'visual_cost_factor': 0.9,
+    'embedding_momentum': 0.98,
 }
 
 class KalmanFilter:
     """
     implementation of modified Kalman Filter
     """
-    def __init__(self, tracker_id, img_height, img_width, cur_bbox, prev_bbox, kwargs):
+    def __init__(self, tracker_id, img_height, img_width, cur_bbox, prev_bbox, embedding, kwargs):
         self.img_height = img_height
         self.img_width = img_width
         self.img_area = img_height * img_width
@@ -37,7 +38,7 @@ class KalmanFilter:
         self.confidence = 0
         self.kwargs = kwargs
         self.cur_bbox = cur_bbox
-        self.embedding = None
+        self.embedding = embedding.reshape(1, -1)
 
         if kwargs['estimate_box_ratio']:
             self.filter = BaseKalmanFilter(dim_x=8, dim_z=4)
@@ -136,6 +137,7 @@ class KalmanFilter:
 
     def update(self, bbox, embedding=None):
         if embedding is not None:
+            embedding = embedding.reshape(1, -1)
             if self.embedding is None:
                 self.embedding = embedding
             else:
@@ -327,12 +329,13 @@ class SORT_OH:
             del self.trackers[id]
 
     def _create_new_trackers(self, detections, embeddings=None):
-        if embeddings is not None:
-            raise NotImplemented()
+
+        if embeddings is None:
+            embeddings = [None,] * len(detections)
 
         if self.frame_count <= self.kwargs['min_hits']:
             # if still in the first few frames
-            for det in detections:
+            for det, emb in zip(detections, embeddings):
                 self.tracker_count += 1
                 self.trackers[f'{self.tracker_count}'] = KalmanFilter(
                     f'{self.tracker_count}',
@@ -340,6 +343,7 @@ class SORT_OH:
                     self.img_width,
                     det,
                     None,
+                    emb,
                     self.kwargs
                 )
         else:
@@ -379,6 +383,7 @@ class SORT_OH:
                         self.img_width,
                         detections[current_idx],
                         self.prev_unmatched[prev_idx],
+                        embeddings[current_idx],
                         self.kwargs
                     )
                     current_to_remove.append(current_idx)
@@ -395,8 +400,15 @@ class SORT_OH:
             self.prev_unmatched = detections
             self.pprev_unmatched = self.prev_unmatched
 
-    def _compute_visual_similarity(self):
-        raise NotImplemented()
+    def _compute_visual_similarity(self, tracker_embeddings, detection_embeddings):
+        tracker_embeddings = np.concatenate(tracker_embeddings, axis=0)
+        detection_embeddings = np.concatenate(detection_embeddings, axis=0)
+        # normalize
+        tracker_norm = np.sqrt(np.sum(tracker_embeddings**2, axis=-1, keepdims=True))
+        detection_norm = np.sqrt(np.sum(detection_embeddings**2, axis=-1, keepdims=True))
+
+        return np.dot(tracker_embeddings/tracker_norm, (detection_embeddings/detection_norm).T)
+
 
     def _match_boxes_to_trackers(self, detections, embeddings):
         """

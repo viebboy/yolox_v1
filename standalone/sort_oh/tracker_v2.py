@@ -13,9 +13,10 @@ import torchvision
 import numpy as np
 import json
 import onnxruntime as RT
-from sort_ohv import SORT_OH
+from sort_oh_v2 import SORT_OH
 import threading
 from queue import Queue
+from infer_embedding import EmbeddingModel
 
 
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
@@ -106,7 +107,7 @@ COLORS = np.array(
 
 
 def parse_args():
-    parser = argparse.ArgumentParser("SORT OH Tracker")
+    parser = argparse.ArgumentParser("SORT OH V2 Tracker")
     parser.add_argument(
         "--tracker-config",
         required=True,
@@ -144,10 +145,16 @@ def parse_args():
         help='whether to draw the motion estimation box from kalman filter'
     )
     parser.add_argument(
-        "--onnx-file",
+        "--detector-model-file",
         type=str,
         required=True,
         help='path to onnx detection model'
+    )
+    parser.add_argument(
+        "--embedding-model-file",
+        type=str,
+        required=True,
+        help='path to onnx visual embedding model'
     )
     parser.add_argument(
         "--input-path",
@@ -202,7 +209,7 @@ def parse_args():
 
     return args
 
-class OnnxModel:
+class DetectionModel:
     def __init__(self, engine_file, provider='CPUExecutionProvider'):
         print('all available execution providers')
         print('---')
@@ -682,6 +689,7 @@ def capture_from_rtsp(path, image_queue, event_queue, skip_frame):
 
 def imageflow_demo(
     predictor,
+    embedding_model,
     input_path,
     output_path,
     output_fps,
@@ -741,8 +749,10 @@ def imageflow_demo(
                 else:
                     detections = None
 
+                embeddings = extract_embeddings(frame, bboxes, embedding_model)
+
                 if show_tracking:
-                    target_ids, predicted_positions = tracker.update(detections)
+                    target_ids, predicted_positions = tracker.update(detections, embeddings)
                 else:
                     target_ids = [None,] * detections.shape[0] if detections is not None else None
                     predicted_positions = []
@@ -779,9 +789,12 @@ def imageflow_demo(
                     start_time = time.time()
                     logger.info(f'pipeline FPS: {fps}')
             else:
+                print('fails to read frame')
                 break
 
     except Exception as error:
+        print('face exception')
+        print(error)
         pass
 
     if cap_thread is not None and not is_terminated:
@@ -790,17 +803,39 @@ def imageflow_demo(
         cap_thread.join()
 
 
-def load_model(onnx_file, execution_provider):
-    assert os.path.exists(onnx_file)
-    assert onnx_file.endswith('.onnx'), 'ONNX model file must end with .onnx'
-    metadata_file = onnx_file.replace('.onnx', '.json')
+def load_model(detector_file, descriptor_file, execution_provider):
+    assert os.path.exists(detector_file)
+    assert detector_file.endswith('.onnx'), 'ONNX model file must end with .onnx'
+    metadata_file = detector_file.replace('.onnx', '.json')
     assert os.path.exists(metadata_file), f'metadata file: {metadata_file} doesnt exist'
 
     with open(metadata_file, 'r') as fid:
         metadata = json.loads(fid.read())
 
-    model = OnnxModel(onnx_file, execution_provider)
-    return model, metadata
+    detection_model = DetectionModel(detector_file, execution_provider)
+
+    if descriptor_file is not None and descriptor_file != '':
+        embedding_model = EmbeddingModel(descriptor_file)
+    else:
+        embedding_model = None
+
+    return detection_model, embedding_model, metadata
+
+def extract_embeddings(frame, bboxes, embedding_model):
+    if embedding_model is None:
+        return None
+
+    embeddings = []
+    for box in bboxes:
+        x0 = int(box[0])
+        y0 = int(box[1])
+        x1 = int(box[2])
+        y1 = int(box[3])
+        crop = np.transpose(frame[y0:y1, x0:x1, :], axes=(2, 0, 1))
+        embedding_vector = embedding_model(crop).reshape(1, -1)
+        embeddings.append(embedding_vector)
+
+    return embeddings
 
 
 if __name__ == "__main__":
@@ -811,10 +846,15 @@ if __name__ == "__main__":
     with open(args.tracker_config, 'r') as fid:
         tracker_params = json.loads(fid.read())
 
-    model, metadata = load_model(args.onnx_file, args.execution_provider)
-    predictor = Predictor(
+    detection_model, embedding_model, metadata = load_model(
+        args.detector_model_file,
+        args.embedding_model_file,
+        args.execution_provider
+    )
+
+    detector = Predictor(
         input_size=metadata['input_size'],
-        model=model,
+        model=detection_model,
         class_names=metadata['class_names'],
         confidence_threshold=args.confidence_threshold,
         nms_threshold=args.nms_threshold,
@@ -830,8 +870,10 @@ if __name__ == "__main__":
     elif args.input_type in ['video', 'webcam', 'rtsp']:
         if args.input_type == 'webcam':
             args.input_path = 0
+
         imageflow_demo(
-            predictor,
+            detector,
+            embedding_model,
             args.input_path,
             args.output_path,
             args.output_fps,
