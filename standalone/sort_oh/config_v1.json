@@ -5,12 +5,10 @@
   "max_age_threshold": 300,
   "max_age": 300,
   "min_hits": 3,
-  "min_similarity_in_step1": 0.3,
+  "min_iou_in_step1": 0.3,
   "min_iou_in_step2": 0.3,
   "min_cover_percentage": 0.3,
   "target_occlusion_threshold": 0.35,
   "object_occlusion_threshold": 0.65,
-  "outside_percentage_threshold": 0.99,
-  "visual_cost_factor": 0.9,
-  "embedding_momentum": 0.8
+  "outside_percentage_threshold": 0.99
 }
