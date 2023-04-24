@@ -12,7 +12,7 @@ from yolox.exp import Exp as MyExp
 class Exp(MyExp):
     def __init__(self):
         super(Exp, self).__init__()
-        self.max_epoch = 2
+        self.max_epoch = 300
         self.warmup_epochs = 0
         # backbone params
         self.nb_init_filters = 48

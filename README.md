@@ -7,7 +7,7 @@ Please refer to the original README in [yolox framework](https://github.com/Megv
 The repo was developed during 4Q2022, which is accompanied with the following [Quip report](https://axon.quip.com/t4IHA4Ab2zLT/Taser-Targeting-Human-Detection-Tracking-Q4-2022-White-Pape://axon.quip.com/t4IHA4Ab2zLT/Taser-Targeting-Human-Detection-Tracking-Q4-2022-White-Paper)
 
 
-**Quick Start**: After the installation step, you can use [train_human_detector.sh](./train_human_detector.sh) to run data preparation, training, onnx conversion on a local machine with 4 GPUs. Detailed description of each step is provided below. 
+**Quick Start**: After the installation step, you can use [train_human_detector_light_weight.sh](./train_human_detector_light_weight.sh) and [train_human_detector_from_checkpoint.sh](./train_human_detector_from_checkpoint.sh) to run data preparation, training, onnx conversion on a local machine with 4 GPUs. The latter uses a pretrained weight released from YOLOX. Detailed description of each step is provided below. 
 
 ## Installation
 
@@ -96,9 +96,11 @@ with:
 - `--val-ann`: name (not the path) of the json validation annotation file. This file should be under the `annotations` subdir of the `--data-dir`. 
 - `--cache`: if specfied, enable data caching for faster data loading and preparation
 
-For those default YOLOX models defined in [here](./exps/default), there are pretrained weights that can be used to initialize the models before training. 
+Please take a look at [train_human_detector_light_weight.sh](train_human_detector_light_weight.sh) as an example. 
 
-A pretrained weight checkpoint can be given to the training script via the switch `-c ${PATH_TO_CHECKPOINT}`. 
+For those default YOLOX models defined in [here](./exps/default), there are pretrained weights that can be used to initialize the models before training.  
+
+A pretrained weight checkpoint can be given to the training script via the switch `-c ${PATH_TO_CHECKPOINT}`. Please take a look at [train_human_detector_from_checkpoint.sh](train_human_detector_from_checkpoint.sh) as an example.
 
 
 ### Detection Inference

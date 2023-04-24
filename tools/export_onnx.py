@@ -152,7 +152,7 @@ def main():
     with torch.no_grad():
         outputs = deploy_model(dummy_input)
 
-    torch.onnx._export(
+    torch.onnx.export(
         deploy_model,
         dummy_input,
         args.output_name,
@@ -161,6 +161,7 @@ def main():
         dynamic_axes={args.input: {0: 'batch'},
                       args.output: {0: 'batch'}} if args.dynamic else None,
         opset_version=args.opset,
+        do_constant_folding=True,
     )
     logger.info("generated onnx model named {}".format(args.output_name))
     metadata_file = args.output_name.replace('.onnx', '.json')

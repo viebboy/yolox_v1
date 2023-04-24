@@ -28,7 +28,6 @@ def check_existence(path, split):
     else:
         return False
 
-
 def download_data(path, split):
     dataset = foz.load_zoo_dataset(
         'open-images-v6',
@@ -153,11 +152,10 @@ def clean_data(path, split, min_area, max_area):
 def main():
     args = parse_args()
     if check_existence(args.output_path, args.split):
-        print('data was downloaded and prepared')
+        print('data has been downloaded and prepared')
     else:
         download_data(args.output_path, args.split)
         clean_data(args.output_path, args.split, args.min_area, args.max_area)
-
 
 if __name__ == '__main__':
     main()

@@ -819,9 +819,11 @@ class YOLOXHeadDeploy(nn.Module):
             [x.flatten(start_dim=2) for x in outputs], dim=2
         ).permute(0, 2, 1)
 
-        outputs[..., :2] = (outputs[..., :2] + self.grid_offset) * self.stride_offset
-        outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * self.stride_offset
-        return outputs
+        #outputs[:, :, :2] = (outputs[:, :, :2] + self.grid_offset) * self.stride_offset
+        #outputs[:, :, 2:4] = torch.exp(outputs[:, :, 2:4]) * self.stride_offset
+        outputs1 = (outputs[:, :, :2] + self.grid_offset) * self.stride_offset
+        outputs2 = torch.exp(outputs[:, :, 2:4]) * self.stride_offset
+        return torch.cat([outputs1, outputs2, outputs[:, :, 4:]], dim=2)
 
     def compute_offsets(self, hw, strides):
         grid_offset = []

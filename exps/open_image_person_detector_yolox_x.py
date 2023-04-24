@@ -14,6 +14,8 @@ class Exp(MyExp):
         self.width = 1.25
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
+        self.max_epoch = 300
+
         self.input_size = (384, 384)
         self.mosaic_scale = (0.5, 1.5)
         self.random_size = (10, 20)
@@ -28,7 +30,6 @@ class Exp(MyExp):
         self.val_ann = None
         self.use_cache = False
         self.nb_shard = 32
-        self.max_epoch = 1
 
     def get_deploy_model(self):
         from yolox.models import YOLOXDeploy, YOLOPAFPN, YOLOXHeadDeploy
