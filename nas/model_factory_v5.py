@@ -86,7 +86,8 @@ class Exp(MyExp):
             os.makedirs(output_path, exist_ok=True)
 
         for key in space_config:
-            assert key in self.hyperparameter_names
+            if key not in self.hyperparameter_names:
+                raise RuntimeError(f'missing key: {key}')
 
         backbone_groups = list(itertools.product(*[space_config['backbone_groups']] * 4))
         stages = list(itertools.product(*[space_config['stages']] * 4))
