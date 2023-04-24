@@ -11,7 +11,72 @@ import hashlib
 import json
 import thop
 from pprint import pprint
+import dill
+from joblib import delayed, Parallel
 
+
+def dump_model(
+    exp,
+    item,
+    output_path,
+    batch_size,
+    opset_version,
+    do_constant_folding
+):
+
+    if batch_size is not None:
+        dummy_input = torch.randn(batch_size, 3, exp.test_size[0], exp.test_size[1])
+        dynamic_axes = None
+    else:
+        dummy_input = torch.randn(1, 3, exp.test_size[0], exp.test_size[1])
+        dynamic_axes = {'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
+
+    input_names = ['input',]
+    output_names = ['output',]
+
+    conf = dict(zip(exp.hyperparameter_names, item))
+    name = exp.get_config_name(conf)
+    json_file = os.path.join(output_path, name + '.json')
+    onnx_file = os.path.join(output_path, name + '.onnx')
+
+    if os.path.exists(json_file) and os.path.exists(onnx_file):
+        return
+
+    exp.set_hyperparameters(**conf)
+
+    model = exp.get_deploy_model()
+    model.eval()
+    try:
+        outputs = model(dummy_input)
+        is_valid = True
+    except Exception as e:
+        print('invalid model config')
+        pprint(conf, indent=2)
+        is_valid = False
+
+    if is_valid:
+        try:
+            torch.onnx.export(
+                model,
+                dummy_input,
+                onnx_file,
+                input_names=input_names,
+                output_names=output_names,
+                dynamic_axes=dynamic_axes,
+                verbose=False,
+                opset_version=opset_version,
+                do_constant_folding=do_constant_folding,
+            )
+            with open(json_file, 'w') as fid:
+                conf['version'] = 'v5'
+                macs, nb_params = thop.profile(model, inputs=(dummy_input, ))
+                conf['nb_macs'] = macs
+                conf['nb_parameters'] = nb_params
+                json.dump(conf, fid, indent=2)
+        except Exception as e:
+            print('export onnx failed for the following configuration')
+            pprint(conf, indent=2)
+            print(e)
 
 class Exp(MyExp):
     def __init__(self):
@@ -71,7 +136,7 @@ class Exp(MyExp):
                 raise RuntimeError("Unknown hyperparameter name: {}".format(name))
 
     def get_config_name(self, config):
-        return hashlib.sha256(dill.dumps(conf)).hexdigest()
+        return hashlib.sha256(dill.dumps(config)).hexdigest()
 
 
     def create_factory(
@@ -89,11 +154,26 @@ class Exp(MyExp):
             if key not in self.hyperparameter_names:
                 raise RuntimeError(f'missing key: {key}')
 
-        backbone_groups = list(itertools.product(*[space_config['backbone_groups']] * 4))
-        stages = list(itertools.product(*[space_config['stages']] * 4))
-        grow_rates = list(itertools.product(*[space_config['grow_rates']] * 4))
-        all_ = list(
-            itertools.product(
+        #backbone_groups = itertools.product(*[space_config['backbone_groups']] * 4)
+        #stages = itertools.product(*[space_config['stages']] * 4)
+        #grow_rates = itertools.product(*[space_config['grow_rates']] * 4)
+        backbone_groups = [[i,]*4 for i in space_config['backbone_groups']]
+        grow_rates = [[i,]*4 for i in space_config['grow_rates']]
+        stages = [[i,]*4 for i in space_config['stages']]
+
+        total = (
+            len(space_config['backbone_groups']) *
+            len(space_config['grow_rates']) *
+            len(space_config['stages']) *
+            len(space_config['nb_init_filters']) *
+            len(space_config['fpn_groups']) *
+            len(space_config['head_groups']) *
+            len(space_config['depth_in_fpn']) *
+            len(space_config['head_hidden_dim'])
+        )
+        print(f'total number of models: {total}')
+
+        all_ = itertools.product(
                 space_config['nb_init_filters'],
                 backbone_groups,
                 space_config['fpn_groups'],
@@ -102,65 +182,19 @@ class Exp(MyExp):
                 grow_rates,
                 space_config['depth_in_fpn'],
                 space_config['head_hidden_dim']
-            )
         )
-        configs = []
-        for item in all_:
-            configs.append(dict(zip(self.hyperparameter_names, item)))
 
-        if batch_size is not None:
-            dummy_input = torch.randn(batch_size, 3, self.test_size[0], self.test_size[1])
-            dynamic_axes = None
-        else:
-            dummy_input = torch.randn(1, 3, self.test_size[0], self.test_size[1])
-            dynamic_axes = {'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
 
-        input_names = ['input']
-        output_names = ['output']
-
-        for idx, conf in enumerate(configs):
-            print(f'processing configuration index {idx} / {len(configs)}')
-            name = self.get_config_name(conf)
-            json_file = os.path.join(output_path, name + '.json')
-            onnx_file = os.path.join(output_path, name + '.onnx')
-            if os.path.exists(json_file) and os.path.exists(onnx_file):
-                continue
-
-            self.set_hyperparameters(**conf)
-
-            model = self.get_deploy_model()
-            model.eval()
-            try:
-                outputs = model(dummy_input)
-                is_valid = True
-            except Exception as e:
-                print('invalid model config')
-                pprint(conf, indent=2)
-                is_valid = False
-
-            if is_valid:
-                try:
-                    torch.onnx.export(
-                        model,
-                        dummy_input,
-                        onnx_file,
-                        input_names=input_names,
-                        output_names=output_names,
-                        dynamic_axes=dynamic_axes,
-                        verbose=False,
-                        opset_version=opset_version,
-                        do_constant_folding=do_constant_folding,
-                    )
-                    with open(json_file, 'w') as fid:
-                        conf['version'] = 'v5'
-                        macs, nb_params = thop.profile(model, inputs=(dummy_input, ))
-                        conf['nb_macs'] = macs
-                        conf['nb_parameters'] = nb_params
-                        json.dump(conf, fid, indent=2)
-                except Exception as e:
-                    print('export onnx failed for the following configuration')
-                    pprint(conf, indent=2)
-                    print(e)
+        Parallel(n_jobs=32)(delayed(dump_model)(
+                self,
+                item,
+                output_path,
+                batch_size,
+                opset_version,
+                do_constant_folding
+            )
+            for item in all_
+        )
 
     def get_model(self, sublinear=False):
 

@@ -1,7 +1,6 @@
 {
   "model_space": {
     "nb_init_filters": [
-      12,
       16,
       20,
       24,
@@ -40,15 +39,11 @@
     ],
     "fpn_groups": [
       1,
-      2,
-      3,
-      4
+      2
     ],
     "head_groups": [
       1,
-      2,
-      3,
-      4
+      2
     ],
     "stages": [
       1,
