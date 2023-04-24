@@ -9,6 +9,8 @@ from yolox.exp import Exp as MyExp
 import itertools
 import hashlib
 import json
+import thop
+from pprint import pprint
 
 
 class Exp(MyExp):
@@ -149,6 +151,10 @@ class Exp(MyExp):
                         do_constant_folding=do_constant_folding,
                     )
                     with open(json_file, 'w') as fid:
+                        conf['version'] = 'v5'
+                        macs, nb_params = thop.profile(model, inputs=(dummy_input, ))
+                        conf['nb_macs'] = macs
+                        conf['nb_parameters'] = nb_params
                         json.dump(conf, fid, indent=2)
                 except Exception as e:
                     print('export onnx failed for the following configuration')
