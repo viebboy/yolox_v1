@@ -9,6 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser("generate onnx model factory")
     parser.add_argument("--onnx-dir", required=True, type=str, help="path to save onnx files")
     parser.add_argument("--config", required=True, type=str, help="path to json config file")
+    parser.add_argument("--nb-process", required=True, type=int, help="number of parallel process")
 
     return parser.parse_args()
 
@@ -23,6 +24,7 @@ def main():
         batch_size=config['batch_size'],
         opset_version=config['opset_version'],
         do_constant_folding=config['do_constant_folding'],
+        nb_process=args.nb_process
     )
 
 if __name__ == '__main__':

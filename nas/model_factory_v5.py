@@ -146,6 +146,7 @@ class Exp(MyExp):
         batch_size,
         opset_version,
         do_constant_folding,
+        nb_process,
     ):
         if not os.path.exists(output_path):
             os.makedirs(output_path, exist_ok=True)
@@ -185,7 +186,7 @@ class Exp(MyExp):
         )
 
 
-        Parallel(n_jobs=32)(delayed(dump_model)(
+        Parallel(n_jobs=nb_process)(delayed(dump_model)(
                 self,
                 item,
                 output_path,
