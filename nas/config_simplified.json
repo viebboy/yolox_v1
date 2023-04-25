@@ -59,6 +59,6 @@
     ]
   },
   "opset_version": 11,
-  "batch_size": null,
+  "batch_size": 1,
   "do_constant_folding": true
 }
