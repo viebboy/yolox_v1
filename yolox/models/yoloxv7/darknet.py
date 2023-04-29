@@ -105,6 +105,7 @@ class CSPDarknet(nn.Module):
         depthwise=False,
         act="silu",
         focus_groups=1,
+        bias=bias,
     ):
         super().__init__()
         assert out_features, "please provide output features of Darknet"
@@ -113,29 +114,33 @@ class CSPDarknet(nn.Module):
 
 
         # stem
-        self.stem = Focus(3, nb_init_filters, ksize=3, act=act, groups=focus_groups)
+        self.stem = Focus(3, nb_init_filters, ksize=3, act=act, groups=focus_groups, bias=bias)
 
         # dark2
         if groups[0] is not None:
             self.dark2 = nn.Sequential(
-                Conv(nb_init_filters, int(nb_init_filters * grow_rates[0]), 3, 2, act=act, groups=groups[0]),
+                Conv(
+                    nb_init_filters, int(nb_init_filters * grow_rates[0]), 3, 2, act=act, groups=groups[0], bias=bias,
+                ),
                 CSPLayer(
                     int(nb_init_filters * grow_rates[0]),
                     int(nb_init_filters * grow_rates[0]),
                     n=stages[0],
                     groups=groups[0],
                     act=act,
+                    bias=bias,
                 ),
             )
         else:
             self.dark2 = nn.Sequential(
-                DWConv(nb_init_filters, int(nb_init_filters * grow_rates[0]), 3, 2, act=act),
+                DWConv(nb_init_filters, int(nb_init_filters * grow_rates[0]), 3, 2, act=act, bias=bias),
                 CSPLayer(
                     int(nb_init_filters * grow_rates[0]),
                     int(nb_init_filters * grow_rates[0]),
                     n=stages[0],
                     groups=groups[0],
                     act=act,
+                    bias=bias,
                 ),
             )
 
@@ -148,7 +153,8 @@ class CSPDarknet(nn.Module):
                     3,
                     2,
                     act=act,
-                    groups=groups[1]
+                    groups=groups[1],
+                    bias=bias,
                 ),
                 CSPLayer(
                     int(nb_init_filters * grow_rates[1]),
@@ -156,6 +162,7 @@ class CSPDarknet(nn.Module):
                     n=stages[1],
                     groups=groups[1],
                     act=act,
+                    bias=bias,
                 ),
             )
         else:
@@ -166,6 +173,7 @@ class CSPDarknet(nn.Module):
                     3,
                     2,
                     act=act,
+                    bias=bias,
                 ),
                 CSPLayer(
                     int(nb_init_filters * grow_rates[1]),
@@ -173,6 +181,7 @@ class CSPDarknet(nn.Module):
                     n=stages[1],
                     groups=groups[1],
                     act=act,
+                    bias=bias,
                 ),
             )
 
@@ -186,6 +195,7 @@ class CSPDarknet(nn.Module):
                     2,
                     act=act,
                     groups=groups[2],
+                    bias=bias,
                 ),
                 CSPLayer(
                     int(nb_init_filters * grow_rates[2]),
@@ -193,6 +203,7 @@ class CSPDarknet(nn.Module):
                     n=stages[2],
                     groups=groups[2],
                     act=act,
+                    bias=bias,
                 ),
             )
         else:
@@ -203,6 +214,7 @@ class CSPDarknet(nn.Module):
                     3,
                     2,
                     act=act,
+                    bias=bias,
                 ),
                 CSPLayer(
                     int(nb_init_filters * grow_rates[2]),
@@ -210,6 +222,7 @@ class CSPDarknet(nn.Module):
                     n=stages[2],
                     groups=groups[2],
                     act=act,
+                    bias=bias,
                 ),
             )
 
@@ -223,12 +236,14 @@ class CSPDarknet(nn.Module):
                     2,
                     act=act,
                     groups=groups[3],
+                    bias=bias,
                 ),
                 SPPBottleneck(
                     int(nb_init_filters * grow_rates[3]),
                     int(nb_init_filters * grow_rates[3]),
                     activation=act,
                     groups=groups[3],
+                    bias=bias,
                 ),
                 CSPLayer(
                     int(nb_init_filters * grow_rates[3]),
@@ -236,6 +251,7 @@ class CSPDarknet(nn.Module):
                     n=stages[3],
                     groups=groups[3],
                     act=act,
+                    bias=bias,
                 ),
             )
         else:
@@ -246,12 +262,14 @@ class CSPDarknet(nn.Module):
                     3,
                     2,
                     act=act,
+                    bias=bias,
                 ),
                 SPPBottleneck(
                     int(nb_init_filters * grow_rates[3]),
                     int(nb_init_filters * grow_rates[3]),
                     activation=act,
                     groups=groups[3],
+                    bias=bias,
                 ),
                 CSPLayer(
                     int(nb_init_filters * grow_rates[3]),
@@ -259,6 +277,7 @@ class CSPDarknet(nn.Module):
                     n=stages[3],
                     groups=groups[3],
                     act=act,
+                    bias=bias,
                 ),
             )
 
