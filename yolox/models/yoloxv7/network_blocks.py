@@ -43,6 +43,9 @@ class BaseConv(nn.Module):
         pad = (ksize - 1) // 2
 
         # find correct group value
+        if groups is None:
+            groups = 1
+
         if groups > 1:
             grp_value = None
             for grp in range(groups, 0, -1):
