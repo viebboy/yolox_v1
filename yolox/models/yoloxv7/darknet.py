@@ -104,6 +104,7 @@ class CSPDarknet(nn.Module):
         out_features=("dark3", "dark4", "dark5"),
         depthwise=False,
         act="silu",
+        focus_groups=1,
     ):
         super().__init__()
         assert out_features, "please provide output features of Darknet"
@@ -112,7 +113,7 @@ class CSPDarknet(nn.Module):
 
 
         # stem
-        self.stem = Focus(3, nb_init_filters, ksize=3, act=act)
+        self.stem = Focus(3, nb_init_filters, ksize=3, act=act, groups=focus_groups)
 
         # dark2
         if groups[0] is not None:

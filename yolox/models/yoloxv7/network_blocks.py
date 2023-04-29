@@ -88,7 +88,7 @@ class BaseConv(nn.Module):
 class DWConv(nn.Module):
     """Depthwise Conv + Conv"""
 
-    def __init__(self, in_channels, out_channels, ksize, stride=1, act="silu"):
+    def __init__(self, in_channels, out_channels, ksize, stride=1, act="silu", bias=False):
         super().__init__()
         self.dconv = BaseConv(
             in_channels,
@@ -97,9 +97,10 @@ class DWConv(nn.Module):
             stride=stride,
             groups=in_channels,
             act=act,
+            bias=False,
         )
         self.pconv = BaseConv(
-            in_channels, out_channels, ksize=1, stride=1, groups=1, act=act
+            in_channels, out_channels, ksize=1, stride=1, groups=1, act=act, bias=bias
         )
 
     def forward(self, x):
@@ -118,16 +119,17 @@ class Bottleneck(nn.Module):
         depthwise=False,
         act="silu",
         groups=1,
+        bias=False,
     ):
         super().__init__()
         hidden_channels = int(out_channels * expansion)
         Conv = DWConv if depthwise else BaseConv
         if groups is not None:
-            self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act, groups=groups)
-            self.conv2 = Conv(hidden_channels, out_channels, 3, stride=1, act=act, groups=groups)
+            self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act, groups=groups, bias=bias)
+            self.conv2 = Conv(hidden_channels, out_channels, 3, stride=1, act=act, groups=groups, bias=bias)
         else:
-            self.conv1 = DWConv(in_channels, hidden_channels, 1, stride=1, act=act)
-            self.conv2 = DWConv(hidden_channels, out_channels, 3, stride=1, act=act)
+            self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act, bias=bias)
+            self.conv2 = DWConv(hidden_channels, out_channels, 3, stride=1, act=act, bias=bias)
 
         self.use_add = shortcut and in_channels == out_channels
 
@@ -160,14 +162,18 @@ class SPPBottleneck(nn.Module):
     """Spatial pyramid pooling layer used in YOLOv3-SPP"""
 
     def __init__(
-        self, in_channels, out_channels, kernel_sizes=(5, 9, 13), activation="silu", groups=1,
+        self, in_channels, out_channels, kernel_sizes=(5, 9, 13), activation="silu", groups=1, bias=False,
     ):
         super().__init__()
         hidden_channels = in_channels // 2
         if groups is not None:
-            self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=activation, groups=groups)
+            self.conv1 = BaseConv(
+                in_channels, hidden_channels, 1, stride=1, act=activation, groups=groups, bias=bias
+            )
         else:
-            self.conv1 = DWConv(in_channels, hidden_channels, 1, stride=1, act=activation)
+            self.conv1 = DWConv(
+                in_channels, hidden_channels, 1, stride=1, act=activation, bias=bias
+            )
 
         self.m = nn.ModuleList(
             [
@@ -177,10 +183,9 @@ class SPPBottleneck(nn.Module):
         )
         conv2_channels = hidden_channels * (len(kernel_sizes) + 1)
 
-        if groups is not None:
-            self.conv2 = BaseConv(conv2_channels, out_channels, 1, stride=1, act=activation, groups=groups)
-        else:
-            self.conv2 = DWConv(conv2_channels, out_channels, 1, stride=1, act=activation)
+        self.conv2 = BaseConv(
+            conv2_channels, out_channels, 1, stride=1, act=activation, groups=groups, bias=bias
+        )
 
     def forward(self, x):
         x = self.conv1(x)
@@ -202,6 +207,7 @@ class CSPLayer(nn.Module):
         depthwise=False,
         act="silu",
         groups=1,
+        bias=False,
     ):
         """
         Args:
@@ -212,18 +218,13 @@ class CSPLayer(nn.Module):
         # ch_in, ch_out, number, shortcut, groups, expansion
         super().__init__()
         hidden_channels = int(out_channels * expansion)  # hidden channels
-        if groups is not None:
-            self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act, groups=groups)
-            self.conv2 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act, groups=groups)
-            self.conv3 = BaseConv(2 * hidden_channels, out_channels, 1, stride=1, act=act, groups=groups)
-        else:
-            self.conv1 = DWConv(in_channels, hidden_channels, 1, stride=1, act=act)
-            self.conv2 = DWConv(in_channels, hidden_channels, 1, stride=1, act=act)
-            self.conv3 = DWConv(2 * hidden_channels, out_channels, 1, stride=1, act=act)
+        self.conv1 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act, groups=groups, bias=bias)
+        self.conv2 = BaseConv(in_channels, hidden_channels, 1, stride=1, act=act, groups=groups, bias=bias)
+        self.conv3 = BaseConv(2 * hidden_channels, out_channels, 1, stride=1, act=act, groups=groups, bias=bias)
 
         module_list = [
             Bottleneck(
-                hidden_channels, hidden_channels, shortcut, 1.0, depthwise, act=act, groups=groups,
+                hidden_channels, hidden_channels, shortcut, 1.0, depthwise, act=act, groups=groups, bias=bias
             )
             for _ in range(n)
         ]
@@ -240,9 +241,14 @@ class CSPLayer(nn.Module):
 class Focus(nn.Module):
     """Focus width and height information into channel space."""
 
-    def __init__(self, in_channels, out_channels, ksize=1, stride=1, act="silu"):
+    def __init__(self, in_channels, out_channels, ksize=1, stride=1, act="silu", groups=1, bias=False):
         super().__init__()
-        self.conv = BaseConv(in_channels * 4, out_channels, ksize, stride, act=act)
+        if groups is not None:
+            self.conv = BaseConv(in_channels * 4, out_channels, ksize, stride, act=act, groups=groups, bias=bias)
+        elif groups is None:
+            self.conv = DWConv(in_channels * 4, out_channels, ksize, stride, act=act, bias=bias)
+        else:
+            raise RuntimeError("groups must in [1, 4, None] for the focus module")
 
     def forward(self, x):
         # shape of x (b,c,w,h) -> y(b,4c,w/2,h/2)

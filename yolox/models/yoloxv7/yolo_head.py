@@ -26,6 +26,7 @@ class YOLOXHead(nn.Module):
         depthwise=False,
         groups=1,
         nb_fpn=3,
+        bias=False,
     ):
         """
         Args:
@@ -59,6 +60,7 @@ class YOLOXHead(nn.Module):
                         stride=1,
                         act=act,
                         groups=groups,
+                        bias=bias,
                     )
                 )
                 self.cls_convs.append(
@@ -71,6 +73,7 @@ class YOLOXHead(nn.Module):
                                 stride=1,
                                 act=act,
                                 groups=groups,
+                                bias=bias,
                             ),
                             Conv(
                                 in_channels=hidden_dim,
@@ -79,6 +82,7 @@ class YOLOXHead(nn.Module):
                                 stride=1,
                                 act=act,
                                 groups=groups,
+                                bias=bias,
                             ),
                         ]
                     )
@@ -93,6 +97,7 @@ class YOLOXHead(nn.Module):
                                 stride=1,
                                 act=act,
                                 groups=groups,
+                                bias=bias,
                             ),
                             Conv(
                                 in_channels=hidden_dim,
@@ -101,6 +106,7 @@ class YOLOXHead(nn.Module):
                                 stride=1,
                                 act=act,
                                 groups=groups,
+                                bias=bias,
                             ),
                         ]
                     )
@@ -112,6 +118,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
+                        bias=bias,
                     )
                 )
                 self.reg_preds.append(
@@ -121,6 +128,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
+                        bias=bias,
                     )
                 )
                 self.obj_preds.append(
@@ -130,6 +138,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
+                        bias=bias,
                     )
                 )
         else:
@@ -142,6 +151,7 @@ class YOLOXHead(nn.Module):
                         stride=1,
                         act=act,
                         groups=1,
+                        bias=bias,
                     )
                 )
                 self.cls_convs.append(
@@ -153,6 +163,7 @@ class YOLOXHead(nn.Module):
                                 ksize=3,
                                 stride=1,
                                 act=act,
+                                bias=bias,
                             ),
                             DWConv(
                                 in_channels=hidden_dim,
@@ -160,6 +171,7 @@ class YOLOXHead(nn.Module):
                                 ksize=3,
                                 stride=1,
                                 act=act,
+                                bias=bias,
                             ),
                         ]
                     )
@@ -173,6 +185,7 @@ class YOLOXHead(nn.Module):
                                 ksize=3,
                                 stride=1,
                                 act=act,
+                                bias=bias,
                             ),
                             DWConv(
                                 in_channels=hidden_dim,
@@ -180,6 +193,7 @@ class YOLOXHead(nn.Module):
                                 ksize=3,
                                 stride=1,
                                 act=act,
+                                bias=bias,
                             ),
                         ]
                     )
@@ -191,6 +205,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
+                        bias=bias,
                     )
                 )
                 self.reg_preds.append(
@@ -200,6 +215,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
+                        bias=bias,
                     )
                 )
                 self.obj_preds.append(
@@ -209,6 +225,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
+                        bias=bias,
                     )
                 )
 
@@ -751,6 +768,7 @@ class YOLOXHeadDeploy(nn.Module):
         depthwise=False,
         groups=1,
         nb_fpn=3,
+        bias=False,
     ):
 
         """
@@ -797,6 +815,7 @@ class YOLOXHeadDeploy(nn.Module):
                     stride=1,
                     act=act,
                     groups=groups,
+                    bias=bias,
                 )
             )
             self.cls_convs.append(
@@ -809,6 +828,7 @@ class YOLOXHeadDeploy(nn.Module):
                             stride=1,
                             act=act,
                             groups=groups,
+                            bias=bias,
                         ),
                         Conv(
                             in_channels=hidden_dim,
@@ -817,6 +837,7 @@ class YOLOXHeadDeploy(nn.Module):
                             stride=1,
                             act=act,
                             groups=groups,
+                            bias=bias,
                         ),
                     ]
                 )
@@ -831,6 +852,7 @@ class YOLOXHeadDeploy(nn.Module):
                             stride=1,
                             act=act,
                             groups=groups,
+                            bias=bias,
                         ),
                         Conv(
                             in_channels=hidden_dim,
@@ -839,6 +861,7 @@ class YOLOXHeadDeploy(nn.Module):
                             stride=1,
                             act=act,
                             groups=groups,
+                            bias=bias,
                         ),
                     ]
                 )
@@ -850,6 +873,7 @@ class YOLOXHeadDeploy(nn.Module):
                     kernel_size=1,
                     stride=1,
                     padding=0,
+                    bias=bias,
                 )
             )
             self.reg_preds.append(
@@ -859,6 +883,7 @@ class YOLOXHeadDeploy(nn.Module):
                     kernel_size=1,
                     stride=1,
                     padding=0,
+                    bias=bias,
                 )
             )
             self.obj_preds.append(
@@ -868,6 +893,7 @@ class YOLOXHeadDeploy(nn.Module):
                     kernel_size=1,
                     stride=1,
                     padding=0,
+                    bias=bias,
                 )
             )
 

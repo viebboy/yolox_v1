@@ -25,6 +25,8 @@ class YOLOPAFPN(nn.Module):
         in_features=("dark3", "dark4", "dark5"),
         depthwise=False,
         act="silu",
+        focus_groups=1,
+        bias=False,
     ):
         super().__init__()
         self.backbone = CSPDarknet(
@@ -33,6 +35,8 @@ class YOLOPAFPN(nn.Module):
             stages=stages,
             grow_rates=grow_rates,
             act=act,
+            focus_groups=focus_groups,
+            bias=bias,
         )
         self.in_features = in_features
         self.compute_in_channels()
@@ -49,6 +53,7 @@ class YOLOPAFPN(nn.Module):
                 1,
                 act=act,
                 groups=fpn_groups,
+                bias=bias,
             )
         else:
             self.lateral_conv0 = DWConv(
@@ -57,6 +62,7 @@ class YOLOPAFPN(nn.Module):
                 1,
                 1,
                 act=act,
+                bias=bias,
             )
 
         # need c3p4
@@ -67,15 +73,16 @@ class YOLOPAFPN(nn.Module):
             False,
             act=act,
             groups=fpn_groups,
+            bias=bias,
         )  # cat
 
         if fpn_groups is not None:
             self.reduce_conv1 = BaseConv(
-                self.in_channels[1], self.in_channels[0], 1, 1, act=act, groups=fpn_groups,
+                self.in_channels[1], self.in_channels[0], 1, 1, act=act, groups=fpn_groups, bias=bias
             )
         else:
             self.reduce_conv1 = DWConv(
-                self.in_channels[1], self.in_channels[0], 1, 1, act=act
+                self.in_channels[1], self.in_channels[0], 1, 1, act=act, bias=bias,
             )
 
         self.C3_p3 = CSPLayer(
@@ -85,16 +92,17 @@ class YOLOPAFPN(nn.Module):
             False,
             act=act,
             groups=fpn_groups,
+            bias=bias,
         )
 
         # bottom-up conv
         if fpn_groups is not None:
             self.bu_conv2 = Conv(
-                self.in_channels[0], self.in_channels[0], 3, 2, act=act, groups=fpn_groups,
+                self.in_channels[0], self.in_channels[0], 3, 2, act=act, groups=fpn_groups, bias=bias,
             )
         else:
             self.bu_conv2 = DWConv(
-                self.in_channels[0], self.in_channels[0], 3, 2, act=act
+                self.in_channels[0], self.in_channels[0], 3, 2, act=act, bias=bias,
             )
 
         self.C3_n3 = CSPLayer(
@@ -104,16 +112,17 @@ class YOLOPAFPN(nn.Module):
             False,
             act=act,
             groups=fpn_groups,
+            bias=bias,
         )
 
         # bottom-up conv
         if fpn_groups is not None:
             self.bu_conv1 = Conv(
-                self.in_channels[1], self.in_channels[1], 3, 2, act=act, groups=fpn_groups,
+                self.in_channels[1], self.in_channels[1], 3, 2, act=act, groups=fpn_groups, bias=bias,
             )
         else:
             self.bu_conv1 = DWConv(
-                self.in_channels[1], self.in_channels[1], 3, 2, act=act
+                self.in_channels[1], self.in_channels[1], 3, 2, act=act, bias=bias
             )
 
 
@@ -124,6 +133,7 @@ class YOLOPAFPN(nn.Module):
             False,
             act=act,
             groups=fpn_groups,
+            bias=bias,
         )
 
     @torch.no_grad()
