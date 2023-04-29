@@ -105,7 +105,7 @@ class CSPDarknet(nn.Module):
         depthwise=False,
         act="silu",
         focus_groups=1,
-        bias=bias,
+        bias=False,
     ):
         super().__init__()
         assert out_features, "please provide output features of Darknet"
