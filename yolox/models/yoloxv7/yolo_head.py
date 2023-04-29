@@ -66,7 +66,7 @@ class YOLOXHead(nn.Module):
                 self.cls_convs.append(
                     nn.Sequential(
                         *[
-                            Conv(
+                            BaseConv(
                                 in_channels=hidden_dim,
                                 out_channels=hidden_dim,
                                 ksize=3,
@@ -75,7 +75,7 @@ class YOLOXHead(nn.Module):
                                 groups=groups,
                                 bias=bias,
                             ),
-                            Conv(
+                            BaseConv(
                                 in_channels=hidden_dim,
                                 out_channels=hidden_dim,
                                 ksize=3,
@@ -90,7 +90,7 @@ class YOLOXHead(nn.Module):
                 self.reg_convs.append(
                     nn.Sequential(
                         *[
-                            Conv(
+                            BaseConv(
                                 in_channels=hidden_dim,
                                 out_channels=hidden_dim,
                                 ksize=3,
@@ -99,7 +99,7 @@ class YOLOXHead(nn.Module):
                                 groups=groups,
                                 bias=bias,
                             ),
-                            Conv(
+                            BaseConv(
                                 in_channels=hidden_dim,
                                 out_channels=hidden_dim,
                                 ksize=3,
@@ -118,7 +118,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
-                        bias=bias,
+                        bias=True,
                     )
                 )
                 self.reg_preds.append(
@@ -138,7 +138,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
-                        bias=bias,
+                        bias=True,
                     )
                 )
         else:
@@ -205,7 +205,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
-                        bias=bias,
+                        bias=True,
                     )
                 )
                 self.reg_preds.append(
@@ -225,7 +225,7 @@ class YOLOXHead(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0,
-                        bias=bias,
+                        bias=True,
                     )
                 )
 
@@ -804,98 +804,185 @@ class YOLOXHeadDeploy(nn.Module):
         self.reg_preds = nn.ModuleList()
         self.obj_preds = nn.ModuleList()
         self.stems = nn.ModuleList()
-        Conv = DWConv if depthwise else BaseConv
 
-        for i in range(len(in_channels)):
-            self.stems.append(
-                BaseConv(
-                    in_channels=in_channels[i],
-                    out_channels=hidden_dim,
-                    ksize=1,
-                    stride=1,
-                    act=act,
-                    groups=groups,
-                    bias=bias,
+        if groups is not None:
+            for i in range(len(in_channels)):
+                self.stems.append(
+                    BaseConv(
+                        in_channels=in_channels[i],
+                        out_channels=hidden_dim,
+                        ksize=1,
+                        stride=1,
+                        act=act,
+                        groups=groups,
+                        bias=bias,
+                    )
                 )
-            )
-            self.cls_convs.append(
-                nn.Sequential(
-                    *[
-                        Conv(
-                            in_channels=hidden_dim,
-                            out_channels=hidden_dim,
-                            ksize=3,
-                            stride=1,
-                            act=act,
-                            groups=groups,
-                            bias=bias,
-                        ),
-                        Conv(
-                            in_channels=hidden_dim,
-                            out_channels=hidden_dim,
-                            ksize=3,
-                            stride=1,
-                            act=act,
-                            groups=groups,
-                            bias=bias,
-                        ),
-                    ]
+                self.cls_convs.append(
+                    nn.Sequential(
+                        *[
+                            BaseConv(
+                                in_channels=hidden_dim,
+                                out_channels=hidden_dim,
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                                groups=groups,
+                                bias=bias,
+                            ),
+                            BaseConv(
+                                in_channels=hidden_dim,
+                                out_channels=hidden_dim,
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                                groups=groups,
+                                bias=bias,
+                            ),
+                        ]
+                    )
                 )
-            )
-            self.reg_convs.append(
-                nn.Sequential(
-                    *[
-                        Conv(
-                            in_channels=hidden_dim,
-                            out_channels=hidden_dim,
-                            ksize=3,
-                            stride=1,
-                            act=act,
-                            groups=groups,
-                            bias=bias,
-                        ),
-                        Conv(
-                            in_channels=hidden_dim,
-                            out_channels=hidden_dim,
-                            ksize=3,
-                            stride=1,
-                            act=act,
-                            groups=groups,
-                            bias=bias,
-                        ),
-                    ]
+                self.reg_convs.append(
+                    nn.Sequential(
+                        *[
+                            BaseConv(
+                                in_channels=hidden_dim,
+                                out_channels=hidden_dim,
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                                groups=groups,
+                                bias=bias,
+                            ),
+                            BaseConv(
+                                in_channels=hidden_dim,
+                                out_channels=hidden_dim,
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                                groups=groups,
+                                bias=bias,
+                            ),
+                        ]
+                    )
                 )
-            )
-            self.cls_preds.append(
-                nn.Conv2d(
-                    in_channels=hidden_dim,
-                    out_channels=self.n_anchors * self.num_classes,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    bias=bias,
+                self.cls_preds.append(
+                    nn.Conv2d(
+                        in_channels=hidden_dim,
+                        out_channels=self.n_anchors * self.num_classes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=True,
+                    )
                 )
-            )
-            self.reg_preds.append(
-                nn.Conv2d(
-                    in_channels=hidden_dim,
-                    out_channels=4,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    bias=bias,
+                self.reg_preds.append(
+                    nn.Conv2d(
+                        in_channels=hidden_dim,
+                        out_channels=4,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=bias,
+                    )
                 )
-            )
-            self.obj_preds.append(
-                nn.Conv2d(
-                    in_channels=hidden_dim,
-                    out_channels=self.n_anchors * 1,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    bias=bias,
+                self.obj_preds.append(
+                    nn.Conv2d(
+                        in_channels=hidden_dim,
+                        out_channels=self.n_anchors * 1,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=True,
+                    )
                 )
-            )
+        else:
+            for i in range(len(in_channels)):
+                self.stems.append(
+                    BaseConv(
+                        in_channels=in_channels[i],
+                        out_channels=hidden_dim,
+                        ksize=1,
+                        stride=1,
+                        act=act,
+                        groups=1,
+                        bias=bias,
+                    )
+                )
+                self.cls_convs.append(
+                    nn.Sequential(
+                        *[
+                            DWConv(
+                                in_channels=hidden_dim,
+                                out_channels=hidden_dim,
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                                bias=bias,
+                            ),
+                            DWConv(
+                                in_channels=hidden_dim,
+                                out_channels=hidden_dim,
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                                bias=bias,
+                            ),
+                        ]
+                    )
+                )
+                self.reg_convs.append(
+                    nn.Sequential(
+                        *[
+                            DWConv(
+                                in_channels=hidden_dim,
+                                out_channels=hidden_dim,
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                                bias=bias,
+                            ),
+                            DWConv(
+                                in_channels=hidden_dim,
+                                out_channels=hidden_dim,
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                                bias=bias,
+                            ),
+                        ]
+                    )
+                )
+                self.cls_preds.append(
+                    nn.Conv2d(
+                        in_channels=hidden_dim,
+                        out_channels=self.n_anchors * self.num_classes,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=True,
+                    )
+                )
+                self.reg_preds.append(
+                    nn.Conv2d(
+                        in_channels=hidden_dim,
+                        out_channels=4,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=bias,
+                    )
+                )
+                self.obj_preds.append(
+                    nn.Conv2d(
+                        in_channels=hidden_dim,
+                        out_channels=self.n_anchors * 1,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0,
+                        bias=True,
+                    )
+                )
 
         self.strides = strides
 
