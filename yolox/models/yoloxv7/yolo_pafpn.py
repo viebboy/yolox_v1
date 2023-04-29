@@ -56,13 +56,14 @@ class YOLOPAFPN(nn.Module):
                 bias=bias,
             )
         else:
-            self.lateral_conv0 = DWConv(
+            self.lateral_conv0 = BaseConv(
                 self.in_channels[2],
                 self.in_channels[1],
                 1,
                 1,
                 act=act,
                 bias=bias,
+                groups=1
             )
 
         # need c3p4
@@ -81,8 +82,8 @@ class YOLOPAFPN(nn.Module):
                 self.in_channels[1], self.in_channels[0], 1, 1, act=act, groups=fpn_groups, bias=bias
             )
         else:
-            self.reduce_conv1 = DWConv(
-                self.in_channels[1], self.in_channels[0], 1, 1, act=act, bias=bias,
+            self.reduce_conv1 = BaseConv(
+                self.in_channels[1], self.in_channels[0], 1, 1, act=act, bias=bias, groups=1,
             )
 
         self.C3_p3 = CSPLayer(
@@ -97,7 +98,7 @@ class YOLOPAFPN(nn.Module):
 
         # bottom-up conv
         if fpn_groups is not None:
-            self.bu_conv2 = Conv(
+            self.bu_conv2 = BaseConv(
                 self.in_channels[0], self.in_channels[0], 3, 2, act=act, groups=fpn_groups, bias=bias,
             )
         else:
