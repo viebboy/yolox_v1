@@ -169,14 +169,9 @@ class SPPBottleneck(nn.Module):
     ):
         super().__init__()
         hidden_channels = in_channels // 2
-        if groups is not None:
-            self.conv1 = BaseConv(
-                in_channels, hidden_channels, 1, stride=1, act=activation, groups=groups, bias=bias
-            )
-        else:
-            self.conv1 = DWConv(
-                in_channels, hidden_channels, 1, stride=1, act=activation, bias=bias
-            )
+        self.conv1 = BaseConv(
+            in_channels, hidden_channels, 1, stride=1, act=activation, groups=groups, bias=bias
+        )
 
         self.m = nn.ModuleList(
             [
