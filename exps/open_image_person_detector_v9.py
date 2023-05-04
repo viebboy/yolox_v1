@@ -15,6 +15,7 @@ class Exp(MyExp):
         super(Exp, self).__init__()
         self.head_groups = 4
         self.head_hidden_dims = [48, 48, 48]
+        self.use_bias = True
 
         #
         self.num_classes = 1
@@ -55,6 +56,7 @@ class Exp(MyExp):
                 num_classes=self.num_classes,
                 groups=self.head_groups,
                 nb_fpn=2, # pd backbone only has 2 fpn outputs
+                use_bias=self.use_bias,
             )
             self.model = YOLOX(backbone, head)
 
@@ -84,6 +86,7 @@ class Exp(MyExp):
             num_classes=self.num_classes,
             groups=self.head_groups,
             nb_fpn=2,
+            use_bias=self.use_bias,
         )
         model = YOLOXDeploy(backbone, head)
 
