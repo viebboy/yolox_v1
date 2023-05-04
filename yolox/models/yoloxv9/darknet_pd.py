@@ -6,6 +6,7 @@ import logging
 from typing import Dict
 from typing import List
 from typing import Tuple
+import os
 
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
@@ -15,16 +16,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from utils import helpers as h
-from utils.parse_config import parse_model_config
-from utils.utils_func import build_targets
-from utils.utils_func import build_targets_multilabel
-from utils.utils_func import to_cpu
+from .utils import helpers as h
+from .utils.parse_config import parse_model_config
+from .utils.utils_func import build_targets
+from .utils.utils_func import build_targets_multilabel
+from .utils.utils_func import to_cpu
 # from plate_detection.task import plot_samples
 logger = logging.getLogger()
 IOU_THRESHOLD = 0.5
 CONF_THRESHOLD = 0.5
 
+default_config = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'darknet_v1_anchor_free.cfg')
 
 def _parse_yolo_module(module_def, hyper_params):
     print(f'-- module_def = {module_def}')
@@ -534,7 +536,7 @@ class YOLOLayer_multilabel(nn.Module):
 class Darknet(nn.Module):
     """YOLOv3 object detection model"""
 
-    def __init__(self, config_path='./darknet_v1_anchor_free.cfg', device='cuda', disabled_layers=[].copy()):
+    def __init__(self, config_path=default_config, device='cuda', disabled_layers=[].copy()):
         super(Darknet, self).__init__()
         self.module_defs = parse_model_config(config_path)
         self.width = int(self.module_defs[0]['width'])
