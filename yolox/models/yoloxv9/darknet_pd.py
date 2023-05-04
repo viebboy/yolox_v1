@@ -140,7 +140,7 @@ def create_modules(module_defs, device) -> Tuple[Dict, nn.ModuleList]:
             modules.add_module('yolo_{}'.format(module_i), yolo_layer)
         elif module_def['type'] == 'yolox':
             # yolo_layer = h.YOLOXHeadNoStemNoClsConvNoRegLoss(
-            modules.add_module('yolo_{}'.format(module_i), PlaceHolder)
+            modules.add_module('yolo_{}'.format(module_i), PlaceHolder())
         elif module_def['type'] == 'yolo_multilabel':
             anchors, num_classes, img_size, ignore_thres = _parse_yolo_module(
                 module_def, hyperparams,
@@ -174,7 +174,6 @@ class Upsample(nn.Module):
 
 class EmptyLayer(nn.Module):
     """Placeholder for 'route' and 'shortcut' layers"""
-
     def __init__(self):
         super(EmptyLayer, self).__init__()
 
