@@ -140,7 +140,15 @@ def create_modules(module_defs, device) -> Tuple[Dict, nn.ModuleList]:
             modules.add_module('yolo_{}'.format(module_i), yolo_layer)
         elif module_def['type'] == 'yolox':
             # yolo_layer = h.YOLOXHeadNoStemNoClsConvNoRegLoss(
-            modules.add_module('yolo_{}'.format(module_i), PlaceHolder)
+            yolo_layer = h.YOLOXHead(
+                num_classes=1,
+                width=.25,
+                strides=[16, 32],
+                in_channels=[64 * 4, 64 * 4],
+                act='relu',
+                depthwise=False,
+            )
+            modules.add_module('yolo_{}'.format(module_i), yolo_layer)
         elif module_def['type'] == 'yolo_multilabel':
             anchors, num_classes, img_size, ignore_thres = _parse_yolo_module(
                 module_def, hyperparams,
@@ -177,13 +185,6 @@ class EmptyLayer(nn.Module):
 
     def __init__(self):
         super(EmptyLayer, self).__init__()
-
-class PlaceHolder(nn.Module):
-    def __init__(self):
-        super(PlaceHolder, self).__init__()
-
-    def forward(self, x):
-        return x
 
 
 class YOLOLayer(nn.Module):
