@@ -56,7 +56,7 @@ class Exp(MyExp):
                 num_classes=self.num_classes,
                 groups=self.head_groups,
                 nb_fpn=2, # pd backbone only has 2 fpn outputs
-                use_bias=self.use_bias,
+                bias=self.use_bias,
             )
             self.model = YOLOX(backbone, head)
 
@@ -86,7 +86,7 @@ class Exp(MyExp):
             num_classes=self.num_classes,
             groups=self.head_groups,
             nb_fpn=2,
-            use_bias=self.use_bias,
+            bias=self.use_bias,
         )
         model = YOLOXDeploy(backbone, head)
 
