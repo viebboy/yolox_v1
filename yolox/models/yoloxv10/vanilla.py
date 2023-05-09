@@ -276,6 +276,8 @@ class Conv2d(nn.Module):
                 ),
             )
         else:
+            if groups is None:
+                groups = 1
             self.conv = nn.Conv2d(
                 in_channels=in_channels,
                 out_channels=out_channels,
