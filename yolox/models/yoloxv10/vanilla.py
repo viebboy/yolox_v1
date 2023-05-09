@@ -128,7 +128,7 @@ DEFAULT_CONFIG = [
         'type': 'conv-bn-act',
         'name': 'backbone_out_48x48',
         'input': 'previous',
-        'is_output': False,
+        'is_output': True,
         'in_channels': 48,
         'out_channels': 96,
         'kernel_size': 3,
@@ -177,7 +177,7 @@ DEFAULT_CONFIG = [
         'type': 'conv-bn-act',
         'name': 'backbone_out_24x24',
         'input': 'previous',
-        'is_output': False,
+        'is_output': True,
         'in_channels': 96,
         'out_channels': 192,
         'kernel_size': 3,
@@ -226,7 +226,7 @@ DEFAULT_CONFIG = [
         'type': 'conv-bn-act',
         'name': 'backbone_out_12x12',
         'input': 'previous',
-        'is_output': False,
+        'is_output': True,
         'in_channels': 192,
         'out_channels': 384,
         'kernel_size': 3,
@@ -235,43 +235,7 @@ DEFAULT_CONFIG = [
         'bias': True,
         'activation': 'silu',
         'groups': 1,
-    },
-    {
-        'type': 'yolox_head',
-        'name': 'head_12x12',
-        'input': 'backbone_out_12x12',
-        'is_output': True,
-        'in_channels': 384,
-        'hidden_dims': [],
-        'bias': True,
-        'activation': 'silu',
-        'groups': 1,
-        'nb_class': 1,
-    },
-    {
-        'type': 'yolox_head',
-        'name': 'head_24x24',
-        'input': 'backbone_out_24x24',
-        'is_output': True,
-        'in_channels': 192,
-        'hidden_dims': [],
-        'bias': True,
-        'activation': 'silu',
-        'groups': 1,
-        'nb_class': 1,
-    },
-    {
-        'type': 'yolox_head',
-        'name': 'head_12x12',
-        'input': 'backbone_out_12x12',
-        'is_output': True,
-        'in_channels': 96,
-        'hidden_dims': [],
-        'bias': True,
-        'activation': 'silu',
-        'groups': 1,
-        'nb_class': 1,
-    },
+    }
 ]
 
 def get_activation(name="silu"):
@@ -507,7 +471,7 @@ class VanillaCNN(nn.Module):
             if metadata['retain']:
                 data[metadata['name']] = current_output
 
-        return {name: data[name] for name in self.output_names}
+        return [data[name] for name in self.output_names]
 
 
 if __name__ == '__main__':
