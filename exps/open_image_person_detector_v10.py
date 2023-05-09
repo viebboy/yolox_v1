@@ -274,12 +274,12 @@ class Exp(MyExp):
         self.backbone_config = copy.deepcopy(DEFAULT_CONFIG)
         count = 0
         in_channels = 3
-        for layer in self.backbone_config:
+        for layer_idx, layer in self.backbone_config:
             if layer['type'] == 'conv-bn-act':
-                layer['groups'] = self.groups
-                layer['bias'] = self.use_bias
-                layer['in_channels'] = in_channels
-                layer['out_channels'] = self.backbone_dims[count]
+                self.backbone_config[layer_idx]['groups'] = self.groups
+                self.backbone_config[layer_idx]['bias'] = self.use_bias
+                self.backbone_config[layer_idx]['in_channels'] = in_channels
+                self.backbone_config[layer_idx]['out_channels'] = self.backbone_dims[count]
                 in_channels = layer['out_channels']
                 count += 1
 
