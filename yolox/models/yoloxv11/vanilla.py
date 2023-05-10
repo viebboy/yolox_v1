@@ -255,25 +255,14 @@ class Conv2d(nn.Module):
         super().__init__()
         assert groups in [-1, 1, None]
         if groups in [-1, None] and kernel_size != 1 and kernel_size != (1, 1):
-            self.conv = nn.Sequential(
-                nn.Conv2d(
-                    in_channels=in_channels,
-                    out_channels=out_channels,
-                    kernel_size=kernel_size,
-                    stride=stride,
-                    padding=padding,
-                    bias=False,
-                    groups=in_channels,
-                ),
-                nn.Conv2d(
-                    in_channels=out_channels,
-                    out_channels=out_channels,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    bias=bias,
-                    groups=1,
-                ),
+            self.conv = nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=bias,
+                groups=in_channels,
             )
         else:
             if groups is None:
@@ -294,20 +283,51 @@ class Conv2d(nn.Module):
 class ConvBnAct(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias, activation, groups):
         super().__init__()
-        self.conv = Conv2d(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            bias=bias,
-            groups=groups,
-        )
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.act = get_activation(activation)
+
+        if groups in [None, -1] and kernel_size != 1 and kernel_size != (1, 1):
+            self.layers = nn.Sequential(
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=padding,
+                    bias=False,
+                    groups=in_channels,
+                ),
+                nn.BatchNorm2d(out_channels),
+                get_activation(activation),
+                nn.Conv2d(
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
+                    bias=bias,
+                    groups=1,
+                ),
+                nn.BatchNorm2d(out_channels),
+                get_activation(activation),
+            )
+        else:
+            if groups is None:
+                groups = 1
+            self.layers = nn.Sequential(
+                nn.Conv2d(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    kernel_size=kernel_size,
+                    stride=stride,
+                    padding=padding,
+                    bias=bias,
+                    groups=groups,
+                ),
+                nn.BatchNorm2d(out_channels),
+                get_activation(activation),
+            )
 
     def forward(self, inputs):
-        return self.act(self.bn(self.conv(inputs)))
+        return self.layers(inputs)
 
 
 class VanillaCNN(nn.Module):
