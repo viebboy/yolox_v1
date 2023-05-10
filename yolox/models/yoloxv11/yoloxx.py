@@ -16,16 +16,20 @@ class YOLOX(nn.Module):
     and detection results during test.
     """
 
-    def __init__(self, nodes):
+    def __init__(self, nodes, output_names, strides):
         super().__init__()
         self.layers = VanillaCNN(nodes)
+        self.output_names = output_names
+        self.strides = strides
 
     def forward(self, x, targets=None):
-        # fpn output content features of [dark3, dark4, dark5]
-        fpn_outs = self.backbone(x)
+        outputs = self.layers(x, targets)
 
         if self.training:
             #assert targets is not None
+            for output_name, stride in zip(self.output_names, self.strides):
+                prediction = outputs[output_name]
+
             loss, iou_loss, conf_loss, cls_loss, l1_loss, num_fg = self.head(
                 fpn_outs, targets, x
             )

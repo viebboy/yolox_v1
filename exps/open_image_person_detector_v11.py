@@ -252,7 +252,7 @@ class Exp(MyExp):
         self.groups = 1
         self.use_bias = True
         self.backbone_dims = [12, 24, 48, 24, 48, 96, 48, 96, 192, 96, 192, 384, 192, 384]
-        self.head_hidden_dims = [48, 48, 48]
+        self.head_hidden_dims = [(48, 48, 48), (48, 48, 48), (48, 48, 48)]
         self.nb_fpn = 3
 
         #
@@ -292,7 +292,7 @@ class Exp(MyExp):
                     m.momentum = 0.03
 
         if "model" not in self.__dict__:
-            from yolox.models.yoloxv10 import YOLOX, VanillaCNN, YOLOXHead
+            from yolox.models.yoloxv11 import YOLOX, VanillaCNN, YOLOXHead
             backbone = VanillaCNN(self.backbone_config)
             with torch.no_grad():
                 x = torch.rand(1, 3, self.test_size[0], self.test_size[1])
@@ -301,7 +301,7 @@ class Exp(MyExp):
 
             head = YOLOXHead(
                 in_channels=in_channels,
-                hidden_dim=self.head_hidden_dims,
+                hidden_dims=self.head_hidden_dims,
                 num_classes=self.num_classes,
                 groups=self.groups,
                 nb_fpn=self.nb_fpn,
@@ -320,7 +320,7 @@ class Exp(MyExp):
                     m.eps = 1e-3
                     m.momentum = 0.03
 
-        from yolox.models.yoloxv10 import YOLOXDeploy, VanillaCNN, YOLOXHeadDeploy
+        from yolox.models.yoloxv11 import YOLOXDeploy, VanillaCNN, YOLOXHeadDeploy
         backbone = VanillaCNN(self.backbone_config)
         with torch.no_grad():
             x = torch.rand(1, 3, self.test_size[0], self.test_size[1])
@@ -331,7 +331,7 @@ class Exp(MyExp):
             input_height=self.test_size[0],
             input_width=self.test_size[1],
             in_channels=in_channels,
-            hidden_dim=self.head_hidden_dims,
+            hidden_dims=self.head_hidden_dims,
             num_classes=self.num_classes,
             groups=self.groups,
             nb_fpn=self.nb_fpn,

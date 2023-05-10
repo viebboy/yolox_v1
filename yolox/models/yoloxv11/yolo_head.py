@@ -130,7 +130,7 @@ class YOLOXHead(nn.Module):
                 self.stems.append(
                     BaseConv(
                         in_channels=in_channels[i],
-                        out_channels=hidden_dim[0],
+                        out_channels=hidden_dims[i][0],
                         ksize=1,
                         stride=1,
                         act=act,
@@ -139,11 +139,11 @@ class YOLOXHead(nn.Module):
                     )
                 )
                 hidden_blocks = []
-                for i in range(len(hidden_dim) -1):
+                for j in range(len(hidden_dims[i]) -1):
                     hidden_blocks.append(
                         DWConv(
-                            in_channels=hidden_dim[i],
-                            out_channels=hidden_dim[i+1],
+                            in_channels=hidden_dims[i][j],
+                            out_channels=hidden_dims[i][j+1],
                             ksize=3,
                             stride=1,
                             act=act,
@@ -154,11 +154,11 @@ class YOLOXHead(nn.Module):
                 self.cls_convs.append(nn.Sequential(*hidden_blocks))
 
                 hidden_blocks = []
-                for i in range(len(hidden_dim) -1):
+                for j in range(len(hidden_dims[i]) -1):
                     hidden_blocks.append(
                         DWConv(
-                            in_channels=hidden_dim[i],
-                            out_channels=hidden_dim[i+1],
+                            in_channels=hidden_dims[i][j],
+                            out_channels=hidden_dims[i][j+1],
                             ksize=3,
                             stride=1,
                             act=act,
@@ -170,7 +170,7 @@ class YOLOXHead(nn.Module):
 
                 self.cls_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=self.n_anchors * self.num_classes,
                         kernel_size=1,
                         stride=1,
@@ -180,7 +180,7 @@ class YOLOXHead(nn.Module):
                 )
                 self.reg_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=4,
                         kernel_size=1,
                         stride=1,
@@ -190,7 +190,7 @@ class YOLOXHead(nn.Module):
                 )
                 self.obj_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=self.n_anchors * 1,
                         kernel_size=1,
                         stride=1,
@@ -730,7 +730,7 @@ class YOLOXHeadDeploy(nn.Module):
         input_height,
         input_width,
         in_channels,
-        hidden_dim,
+        hidden_dims,
         num_classes,
         strides=[8, 16, 32],
         act="silu",
@@ -750,6 +750,7 @@ class YOLOXHeadDeploy(nn.Module):
             raise ValueError('in_channels has different length than strides')
         in_channels = in_channels[-nb_fpn:]
         strides = strides[-nb_fpn:]
+        hidden_dims = hidden_dims[-nb_fpn:]
         self.nb_fpn = nb_fpn
 
         hw = []
@@ -779,7 +780,7 @@ class YOLOXHeadDeploy(nn.Module):
                 self.stems.append(
                     BaseConv(
                         in_channels=in_channels[i],
-                        out_channels=hidden_dim[0],
+                        out_channels=hidden_dims[i][0],
                         ksize=1,
                         stride=1,
                         act=act,
@@ -788,11 +789,11 @@ class YOLOXHeadDeploy(nn.Module):
                     )
                 )
                 hidden_blocks = []
-                for i in range(len(hidden_dim) -1):
+                for j in range(len(hidden_dims[i]) -1):
                     hidden_blocks.append(
                         BaseConv(
-                            in_channels=hidden_dim[i],
-                            out_channels=hidden_dim[i+1],
+                            in_channels=hidden_dims[i][j],
+                            out_channels=hidden_dims[i][j+1],
                             ksize=3,
                             stride=1,
                             act=act,
@@ -804,11 +805,11 @@ class YOLOXHeadDeploy(nn.Module):
                 self.cls_convs.append(nn.Sequential(*hidden_blocks))
 
                 hidden_blocks = []
-                for i in range(len(hidden_dim) -1):
+                for j in range(len(hidden_dims[i]) -1):
                     hidden_blocks.append(
                         BaseConv(
-                            in_channels=hidden_dim[i],
-                            out_channels=hidden_dim[i+1],
+                            in_channels=hidden_dims[i][j],
+                            out_channels=hidden_dims[i][j+1],
                             ksize=3,
                             stride=1,
                             act=act,
@@ -821,7 +822,7 @@ class YOLOXHeadDeploy(nn.Module):
 
                 self.cls_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=self.n_anchors * self.num_classes,
                         kernel_size=1,
                         stride=1,
@@ -831,7 +832,7 @@ class YOLOXHeadDeploy(nn.Module):
                 )
                 self.reg_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=4,
                         kernel_size=1,
                         stride=1,
@@ -841,7 +842,7 @@ class YOLOXHeadDeploy(nn.Module):
                 )
                 self.obj_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=self.n_anchors * 1,
                         kernel_size=1,
                         stride=1,
@@ -854,7 +855,7 @@ class YOLOXHeadDeploy(nn.Module):
                 self.stems.append(
                     BaseConv(
                         in_channels=in_channels[i],
-                        out_channels=hidden_dim[0],
+                        out_channels=hidden_dims[i][0],
                         ksize=1,
                         stride=1,
                         act=act,
@@ -863,11 +864,11 @@ class YOLOXHeadDeploy(nn.Module):
                     )
                 )
                 hidden_blocks = []
-                for i in range(len(hidden_dim) -1):
+                for j in range(len(hidden_dims[i]) -1):
                     hidden_blocks.append(
                         DWConv(
-                            in_channels=hidden_dim[i],
-                            out_channels=hidden_dim[i+1],
+                            in_channels=hidden_dims[i][j],
+                            out_channels=hidden_dims[i][j+1],
                             ksize=3,
                             stride=1,
                             act=act,
@@ -878,11 +879,11 @@ class YOLOXHeadDeploy(nn.Module):
                 self.cls_convs.append(nn.Sequential(*hidden_blocks))
 
                 hidden_blocks = []
-                for i in range(len(hidden_dim) -1):
+                for j in range(len(hidden_dims[i]) -1):
                     hidden_blocks.append(
                         DWConv(
-                            in_channels=hidden_dim[i],
-                            out_channels=hidden_dim[i+1],
+                            in_channels=hidden_dims[i][j],
+                            out_channels=hidden_dims[i][j+1],
                             ksize=3,
                             stride=1,
                             act=act,
@@ -894,7 +895,7 @@ class YOLOXHeadDeploy(nn.Module):
 
                 self.cls_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=self.n_anchors * self.num_classes,
                         kernel_size=1,
                         stride=1,
@@ -904,7 +905,7 @@ class YOLOXHeadDeploy(nn.Module):
                 )
                 self.reg_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=4,
                         kernel_size=1,
                         stride=1,
@@ -914,7 +915,7 @@ class YOLOXHeadDeploy(nn.Module):
                 )
                 self.obj_preds.append(
                     nn.Conv2d(
-                        in_channels=hidden_dim[-1],
+                        in_channels=hidden_dims[i][-1],
                         out_channels=self.n_anchors * 1,
                         kernel_size=1,
                         stride=1,
