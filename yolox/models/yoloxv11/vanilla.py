@@ -310,7 +310,7 @@ class ConvBnAct(nn.Module):
                 get_activation(activation),
             )
         else:
-            if groups is None:
+            if groups in [None, -1]:
                 groups = 1
             self.layers = nn.Sequential(
                 nn.Conv2d(
