@@ -13,19 +13,13 @@ DEFAULT_CONFIG = [
         'in_channels': 3,
         'out_channels': 12,
         'kernel_size': 3,
-        'stride': 1,
+        'stride': 2,
         'padding': 1,
-        'bias': False,
+        'bias': True,
         'activation': 'silu',
         'groups': 1,
     },
     # down sampling: 384 x 384 --> 192 x 192
-    {
-        'type': 'pool2x2',
-        'name': 'pool1',
-        'input': 'previous',
-        'is_output': False,
-    },
     {
         'type': 'conv-bn-act',
         'name': 'conv2',
@@ -34,19 +28,13 @@ DEFAULT_CONFIG = [
         'in_channels': 12,
         'out_channels': 24,
         'kernel_size': 3,
-        'stride': 1,
+        'stride': 2,
         'padding': 1,
         'bias': True,
         'activation': 'silu',
         'groups': 1,
     },
     # down sampling: 192 x 192 --> 96 x 96
-    {
-        'type': 'pool2x2',
-        'name': 'pool2',
-        'input': 'previous',
-        'is_output': False,
-    },
     {
         'type': 'conv-bn-act',
         'name': 'conv3',
@@ -89,6 +77,12 @@ DEFAULT_CONFIG = [
         'activation': 'silu',
         'groups': 1,
     },
+    {
+        'type': 'sum',
+        'name': 'sum1',
+        'input': ['conv3', 'conv5'],
+        'is_output': True,
+    },
     # down sampling: 96 x 96 --> 48 x 48
     {
         'type': 'pool2x2',
@@ -126,9 +120,9 @@ DEFAULT_CONFIG = [
     },
     {
         'type': 'conv-bn-act',
-        'name': 'backbone_out_48x48',
+        'name': 'conv8',
         'input': 'previous',
-        'is_output': True,
+        'is_output': False,
         'in_channels': 48,
         'out_channels': 96,
         'kernel_size': 3,
@@ -137,6 +131,12 @@ DEFAULT_CONFIG = [
         'bias': True,
         'activation': 'silu',
         'groups': 1,
+    },
+    {
+        'type': 'sum',
+        'name': 'backbone_out_48x48',
+        'input': ['conv6', 'conv8'],
+        'is_output': True,
     },
     # down sampling: 48 x 48 --> 24 x 24
     {
@@ -175,9 +175,9 @@ DEFAULT_CONFIG = [
     },
     {
         'type': 'conv-bn-act',
-        'name': 'backbone_out_24x24',
+        'name': 'conv11',
         'input': 'previous',
-        'is_output': True,
+        'is_output': False,
         'in_channels': 96,
         'out_channels': 192,
         'kernel_size': 3,
@@ -186,6 +186,12 @@ DEFAULT_CONFIG = [
         'bias': True,
         'activation': 'silu',
         'groups': 1,
+    },
+    {
+        'type': 'sum',
+        'name': 'backbone_out_24x24',
+        'input': ['conv9', 'conv11'],
+        'is_output': True,
     },
     # down sampling: 24 x 24 --> 12 x 12
     {
@@ -224,9 +230,9 @@ DEFAULT_CONFIG = [
     },
     {
         'type': 'conv-bn-act',
-        'name': 'backbone_out_12x12',
+        'name': 'conv14',
         'input': 'previous',
-        'is_output': True,
+        'is_output': False,
         'in_channels': 192,
         'out_channels': 384,
         'kernel_size': 3,
@@ -235,6 +241,12 @@ DEFAULT_CONFIG = [
         'bias': True,
         'activation': 'silu',
         'groups': 1,
+    },
+    {
+        'type': 'sum',
+        'name': 'backbone_out_12x12',
+        'input': ['conv12', 'conv14'],
+        'is_output': True,
     }
 ]
 
@@ -249,6 +261,16 @@ def get_activation(name="silu"):
         raise AttributeError("Unsupported act type: {}".format(name))
     return module
 
+
+class Sum(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, *inputs):
+        x = 0
+        for item in inputs:
+            x += item
+        return x
 
 class Conv2d(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, bias, groups):
@@ -430,6 +452,10 @@ class VanillaCNN(nn.Module):
                         stride=2,
                         padding=0
                     )
+                )
+            elif node['type'] == 'sum':
+                modules.append(
+                    Sum()
                 )
             else:
                 raise ValueError('Unsupported node type: {}'.format(node['type']))
