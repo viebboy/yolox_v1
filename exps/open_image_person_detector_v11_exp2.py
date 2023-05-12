@@ -264,7 +264,7 @@ class Exp(MyExp):
         self.groups = 1
         self.use_bias = True
         self.backbone_dims = [12, 24, 48, 24, 48, 96, 48, 96, 192, 96, 192, 384, 192, 384]
-        self.head_hidden_dims = [(48, 48, 48), (48, 48, 48), (48, 48, 48)]
+        self.head_hidden_dims = [(48, 48, 48), (48, 48, 48, 48), (48, 48, 48, 48)]
         self.nb_fpn = 3
 
         #
