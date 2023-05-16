@@ -9,5 +9,5 @@ from .losses import IOUloss
 from .yolo_fpn import YOLOFPN
 from .yolo_head import YOLOXHead, YOLOXHeadDeploy
 from .yolo_pafpn import YOLOPAFPN
-from .yolox import YOLOX, YOLOXDeploy
+from .yolox import YOLOX, YOLOXDeploy, YOLOXHeadDeployV2
 from .vanilla import VanillaCNN
