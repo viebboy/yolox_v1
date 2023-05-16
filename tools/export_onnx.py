@@ -33,6 +33,11 @@ def make_parser():
     )
     parser.add_argument("--batch-size", type=int, default=1, help="batch size")
     parser.add_argument(
+        "--deploy-v2", type=str, required=True,
+        choices=['true', 'True', 'false', 'False'],
+        help="whether to use v2 deploy model export"
+    )
+    parser.add_argument(
         "--dynamic", action="store_true", help="whether the input shape should be dynamic or not"
     )
     parser.add_argument("--no-onnxsim", action="store_true", help="use onnxsim or not")
@@ -112,6 +117,7 @@ def verify_pytorch_model(spatial_dim, old_model, new_model):
 @logger.catch
 def main():
     args = make_parser().parse_args()
+    args.deploy_v2 = args.deploy_v2.lower() == 'true'
     logger.info("args value: {}".format(args))
     assert args.output_name.endswith('.onnx'), 'Output onnx file must end with .onnx'
     exp = get_exp(args.exp_file, args.name)
@@ -121,7 +127,10 @@ def main():
         args.experiment_name = exp.exp_name
 
     model = exp.get_model()
-    deploy_model = exp.get_deploy_model()
+    if args.deploy_v2:
+        deploy_model = exp.get_deploy_model_v2()
+    else:
+        deploy_model = exp.get_deploy_model()
 
     if args.ckpt is None:
         file_name = os.path.join(exp.output_dir, args.experiment_name)
