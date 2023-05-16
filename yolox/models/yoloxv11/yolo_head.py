@@ -1018,4 +1018,5 @@ class YOLOXHeadDeployV2(YOLOXHeadDeploy):
 
         outputs1 = (outputs[:, :, :2] + self.grid_offset) * self.stride_offset
         outputs2 = torch.exp(outputs[:, :, 2:4]) * self.stride_offset
-        return torch.cat([outputs1, outputs2, outputs[:, :, 4:] *100.0], dim=2)
+        outputs3 = torch.clip(outputs[:, :, 4:] *100.0, min=0.0, max=100.0)
+        return torch.cat([outputs1, outputs2, outputs3], dim=2)
