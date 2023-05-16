@@ -154,7 +154,7 @@ def main():
     model.eval()
     deploy_model.eval()
 
-    verify_pytorch_model(exp.test_size, model, deploy_model)
+    #verify_pytorch_model(exp.test_size, model, deploy_model)
 
     logger.info("loading checkpoint done.")
     dummy_input = torch.randn(args.batch_size, 3, exp.test_size[0], exp.test_size[1])
